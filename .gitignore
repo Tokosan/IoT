@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+codigo_esp_1234/build/**
+codigo_esp_1235/build/**
+codigo_rasp/flask/**
