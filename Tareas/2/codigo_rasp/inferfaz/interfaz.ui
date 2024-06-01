@@ -126,7 +126,7 @@ color: rgb(255, 255, 255);</string>
       <rect>
        <x>140</x>
        <y>60</y>
-       <width>141</width>
+       <width>161</width>
        <height>21</height>
       </rect>
      </property>
@@ -390,7 +390,7 @@ color: rgb(255, 255, 255);</string>
       <string>Iniciar Monitoreo</string>
      </property>
     </widget>
-    <widget class="QComboBox" name="selec_10">
+    <widget class="QComboBox" name="box_modo_op">
      <property name="geometry">
       <rect>
        <x>100</x>
@@ -473,11 +473,11 @@ color: rgb(255, 255, 255);</string>
       <string>Detener monitoreo</string>
      </property>
     </widget>
-    <widget class="QComboBox" name="selec_11">
+    <widget class="QComboBox" name="box_id_protocol">
      <property name="geometry">
       <rect>
-       <x>420</x>
-       <y>520</y>
+       <x>400</x>
+       <y>530</y>
        <width>181</width>
        <height>31</height>
       </rect>
@@ -514,8 +514,8 @@ color: rgb(255, 255, 255);</string>
     <widget class="QLabel" name="label_30">
      <property name="geometry">
       <rect>
-       <x>450</x>
-       <y>490</y>
+       <x>460</x>
+       <y>500</y>
        <width>101</width>
        <height>21</height>
       </rect>
@@ -529,7 +529,7 @@ color: rgb(255, 255, 255);</string>
       <string>Id protocols</string>
      </property>
     </widget>
-    <widget class="QComboBox" name="comboBox">
+    <widget class="QComboBox" name="box_acc_sampling">
      <property name="geometry">
       <rect>
        <x>240</x>
@@ -559,7 +559,7 @@ color: rgb(255, 255, 255);</string>
       </property>
      </item>
     </widget>
-    <widget class="QComboBox" name="comboBox_2">
+    <widget class="QComboBox" name="box_acc_sensibility">
      <property name="geometry">
       <rect>
        <x>240</x>
@@ -594,7 +594,7 @@ color: rgb(255, 255, 255);</string>
       </property>
      </item>
     </widget>
-    <widget class="QComboBox" name="comboBox_3">
+    <widget class="QComboBox" name="box_gyro_sensibility">
      <property name="geometry">
       <rect>
        <x>240</x>
@@ -619,7 +619,7 @@ color: rgb(255, 255, 255);</string>
       </property>
      </item>
     </widget>
-    <widget class="QComboBox" name="comboBox_4">
+    <widget class="QComboBox" name="box_bme_sampling">
      <property name="geometry">
       <rect>
        <x>240</x>
