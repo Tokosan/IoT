@@ -1,4 +1,5 @@
 import asyncio
+from packet_handler import start_communication
 from bleak import BleakClient
 
 
@@ -18,9 +19,8 @@ async def main(ADDRESS):
     async with BleakClient(ADDRESS) as client:
         char_value = await client.read_gatt_char(CHARACTERISTIC_UUID)
         print("Characterisic A {0}".format("".join(map(chr, char_value))))
-        # Luego podemos escribir en la caracteristica
-        data = 'Hello World!'.encode()
         await client.write_gatt_char(CHARACTERISTIC_UUID, b"\x01\x00")
+        await start_communication(client, CHARACTERISTIC_UUID)
 asyncio.run(main(ADDRESS))
 
 

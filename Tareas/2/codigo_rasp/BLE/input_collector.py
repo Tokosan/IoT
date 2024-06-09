@@ -2,11 +2,14 @@ from PyQt5 import QtWidgets
 from interfaz import Ui_Dialog
 from pymongo import MongoClient
 
-
-class UtilParser:
+#Esta clase se encarga de recolectar los datos de la interfaz
+#y guardarlos en la base de datos de configuración
+class InputCollector:
     def __init__(self, dialog):
         self.interface = Ui_Dialog()
         self.interface.setupUi(dialog)
+        # cuando se aprete el boton configuracion se obtienen los datos de los campos
+        # y se guardan en la base de datos
         self.interface.boton_configuracion.clicked.connect(self.get_and_save_config)
 
         # Mapeo de los status a valores numericos
@@ -33,7 +36,9 @@ class UtilParser:
         self.interface.box_modo_op.currentIndexChanged.connect(self.update_id_protocol)
 
 
-
+    #Esta función se encarga de actualizar el combobox de id_protocol
+    #según la opción seleccionada en el combobox de modo de operación,
+    #mostrando solo los id_protocol compatibles con la opción seleccionada
     def update_id_protocol(self):
         selected_option = self.interface.box_modo_op.currentText().strip()
         compatible_id_protocols = self.modo_op_compatibilities.get(selected_option, [])
@@ -41,6 +46,8 @@ class UtilParser:
         for id_protocol in compatible_id_protocols:
             self.interface.box_id_protocol.addItem(id_protocol)
 
+    #Esta función se encarga de guardar los datos en la MongoDB y retorna el
+    #diccionario con los datos recolectados
     def get_and_save_config(self) -> dict:
         config = {
             "status": self.modo_op_values.get(self.interface.box_modo_op.currentText().strip(), 0),
@@ -64,7 +71,18 @@ class UtilParser:
         db = client['config']
         collection = db['parametros']
         collection.insert_one(config)
+        client.close()
         return config
+
+#Esta función se encarga de obtener la ultima configuración de la base de datos
+def get_last_config():
+    client = MongoClient('localhost', 27017)
+    db = client['config']
+    collection = db['parametros']
+    # Obtenemos la ultima configuración insertada
+    config = collection.find().sort('_id', -1).limit(1)
+    client.close()
+    return config[0] if config.count() > 0 else None
 
 
 if __name__ == "__main__":
@@ -72,6 +90,6 @@ if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
     Dialog = QtWidgets.QDialog()
-    util_parser = UtilParser(Dialog)
+    util_parser = InputCollector(Dialog)
     Dialog.show()
     sys.exit(app.exec_())
