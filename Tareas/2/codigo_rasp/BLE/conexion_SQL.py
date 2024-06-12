@@ -31,7 +31,7 @@ def get_last_config():
     cnx = get_connection()
     cursor = cnx.cursor()
     # Obtenemos la ultima configuración insertada
-    query = ("SELECT * FROM configuration ORDER BY id DESC LIMIT 1")
+    query = ("SELECT * FROM configuration ORDER BY Id_device DESC LIMIT 1")
     cursor.execute(query)
 
     config = cursor.fetchone()
