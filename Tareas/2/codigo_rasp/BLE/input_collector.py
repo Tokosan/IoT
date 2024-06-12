@@ -1,6 +1,6 @@
 import conexion_SQL as sql
 from PyQt5 import QtWidgets
-from interfaz import Ui_Dialog
+from base_interfaz import Ui_Dialog
 
 
 #Esta clase se encarga de recolectar los datos de la interfaz
