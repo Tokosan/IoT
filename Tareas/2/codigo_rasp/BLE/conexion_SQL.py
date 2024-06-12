@@ -34,13 +34,33 @@ def get_last_config():
     query = ("SELECT * FROM configuration ORDER BY Id_device DESC LIMIT 1")
     cursor.execute(query)
 
-    config = cursor.fetchone()
-
+    config_tuple = cursor.fetchone()
+    config = tuple_to_dict(config_tuple) if config_tuple else None
     cursor.close()
     cnx.close()
 
     return config if config is not None else None
 
+def tuple_to_dict(config_tuple):
+    keys = [
+        "id_device",
+        "status",
+        "id_protocol",
+        "acc_sampling",
+        "acc_sensibility",
+        "gyro_sensibility",
+        "bme668_sampling",
+        "discontinuos_time",
+        "tcp_port",
+        "udp_port",
+        "host_ip_addr",
+        "ssid",
+        "pass"
+    ]
+
+    return dict(zip(keys, config_tuple))
+
+# TEST para probar la conexión a la base de datos
 
 def main():
     # Crear un diccionario de configuración de ejemplo

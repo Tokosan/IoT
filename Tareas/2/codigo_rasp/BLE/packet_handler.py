@@ -1,5 +1,5 @@
 from packet_parser_BLE import parse_packet
-from input_collector import get_last_config
+import conexion_SQL as sql
 
 
 # Esta función es asincrona, va a enviar la configuración y
@@ -7,7 +7,7 @@ from input_collector import get_last_config
 async def start_communication(client, CHARACTERISTIC_UUID):
     print("***********************************************")
     print("Iniciando comunicación")
-    config = get_last_config()
+    config = sql.get_last_config()
     id_protocol = config["id_protocol"]
     status = config["status"]
     print(f"ID_protocol: {id_protocol}, Status: {status}")
