@@ -1,6 +1,7 @@
+import conexion_SQL as sql
 from PyQt5 import QtWidgets
 from interfaz import Ui_Dialog
-from pymongo import MongoClient
+
 
 #Esta clase se encarga de recolectar los datos de la interfaz
 #y guardarlos en la base de datos de configuración
@@ -48,7 +49,7 @@ class InputCollector:
 
     #Esta función se encarga de guardar los datos en la MongoDB y retorna el
     #diccionario con los datos recolectados
-    def get_and_save_config(self) -> dict:
+    def get_and_save_config(self):
         config = {
             "status": self.modo_op_values.get(self.interface.box_modo_op.currentText().strip(), 0),
             "id_protocol": self.interface.box_id_protocol.currentText().strip(),
@@ -67,22 +68,8 @@ class InputCollector:
         for key, value in config.items():
             self.interface.consola_1.setText(self.interface.consola_1.toPlainText() + f"{key}: {value}\n")
 
-        client = MongoClient('localhost', 27017)
-        db = client['config']
-        collection = db['parametros']
-        collection.insert_one(config)
-        client.close()
-        return config
+        sql.insert_config(config)
 
-#Esta función se encarga de obtener la ultima configuración de la base de datos
-def get_last_config():
-    client = MongoClient('localhost', 27017)
-    db = client['config']
-    collection = db['parametros']
-    # Obtenemos la ultima configuración insertada
-    config = collection.find().sort('_id', -1).limit(1)
-    client.close()
-    return config[0] if config.count() > 0 else None
 
 
 if __name__ == "__main__":
