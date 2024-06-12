@@ -45,7 +45,7 @@ def get_last_config():
 def main():
     # Crear un diccionario de configuración de ejemplo
     config = {
-        'status': 'active',
+        'status': 0,
         'id_protocol': 1,
         'acc_sampling': 100,
         'acc_sensibility': 2,
