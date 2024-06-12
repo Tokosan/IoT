@@ -41,6 +41,16 @@ def get_last_config():
 
     return config if config is not None else None
 
+
+def delete_all_configurations():
+    cnx = get_connection()
+    cursor = cnx.cursor()
+    query = "DELETE FROM configuration"
+    cursor.execute(query)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+
 def tuple_to_dict(config_tuple):
     keys = [
         "id_device",
