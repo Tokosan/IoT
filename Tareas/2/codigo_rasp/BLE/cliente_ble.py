@@ -1,5 +1,5 @@
 import asyncio
-from packet_handler import start_communication
+# from packet_handler import start_communication
 from bleak import BleakClient
 
 
@@ -12,7 +12,7 @@ def convert_to_128bit_uuid(short_uuid):
     return base_uuid[:4] + short_uuid_hex + base_uuid[8:]
 
 
-ADDRESS = "24:71:89:cc:09:05"
+ADDRESS = "C0:49:EF:08:D3:AE" # Direccion MAC del ESP32 1
 CHARACTERISTIC_UUID = convert_to_128bit_uuid(0xFF01) # Busquen este valor en el codigo de ejemplo de esp-idf
 
 async def main(ADDRESS):
@@ -20,7 +20,7 @@ async def main(ADDRESS):
         char_value = await client.read_gatt_char(CHARACTERISTIC_UUID)
         print("Characterisic A {0}".format("".join(map(chr, char_value))))
         await client.write_gatt_char(CHARACTERISTIC_UUID, b"\x01\x00")
-        await start_communication(client, CHARACTERISTIC_UUID)
+        # await start_communication(client, CHARACTERISTIC_UUID)
 asyncio.run(main(ADDRESS))
 
 
