@@ -6,4 +6,3 @@ codigo_rasp/flask/**
 espressif/**
 espressif
 **/build/**
-iot
