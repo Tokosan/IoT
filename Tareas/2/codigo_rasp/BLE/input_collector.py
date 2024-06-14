@@ -1,7 +1,8 @@
 #import conexion_SQL as sql
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from base_interfaz import Ui_Dialog
-
+import queue
+import time, random
 
 #Esta clase se encarga de recolectar los datos de la interfaz
 #y guardarlos en la base de datos de configuración
@@ -62,6 +63,9 @@ class InputCollector:
         self.interface.text_ssid.textChanged["QString"].connect(self.update_ssid)
         self.interface.text_pass.textChanged["QString"].connect(self.update_passw)
 
+        self.interface.boton_inicio.clicked.connect(self.start_worker)
+        self.interface.boton_detener.clicked.connect(self.stop_worker)
+
         # Config init
         self.config = {
             "status": self.op_mode.get("current").get("value", 0),
@@ -77,6 +81,118 @@ class InputCollector:
             "ssid": self.ssid,
             "pass": self.passw
         }
+
+        self.worker = None
+        self.monitoring = False
+        self.threadpool = QtCore.QThreadPool()
+        self.threadpool.setMaxThreadCount(1)
+        
+        self.data_queues = {
+            "Temp": {"q": queue.Queue(maxsize=20), "data": [], "window": 100}
+        }
+
+        self.plotting = False
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(30)
+        self.timer.timeout.connect(self.update_plots)
+        self.timer.start()
+
+        self.interface.boton_graficar.setEnabled(False)
+        self.interface.boton_detener_graficar.setEnabled(False)
+        self.interface.boton_detener.setEnabled(False)
+        self.interface.boton_graficar.clicked.connect(self.start_plotting)
+        self.interface.boton_detener_graficar.clicked.connect(self.stop_plotting)
+
+    #Esta función se encarga de guardar los datos en la MongoDB y retorna el
+    #diccionario con los datos recolectados
+    def get_and_save_config(self):
+        for key, value in self.config.items():
+            self.interface.consola_1.setText(self.interface.consola_1.toPlainText() + f"{key}: {value}\n")
+
+        #sql.insert_config(config)
+
+    def start_worker(self):
+        self.toggle_fields_tab1(False)
+
+        self.monitoring = True
+        self.worker = Worker(self.start_monitoring, )
+        self.threadpool.start(self.worker)
+
+        self.interface.boton_graficar.setEnabled(True)
+
+    def stop_worker(self):
+         self.toggle_fields_tab1(True)
+         self.monitoring = False
+
+         self.interface.boton_graficar.setEnabled(False)
+         
+         # If plotting, stop
+         if self.plotting:
+             self.stop_plotting()
+
+    def start_monitoring(self):
+        try:
+            QtWidgets.QApplication.processEvents()
+            while self.monitoring:
+                # DATA DE PRUEBA
+                data = [random.randint(5, 30) for i in range(5)]
+                if self.plotting:
+
+                    q = self.data_queues.get("Temp").get("q")
+                    try:
+                        q.put_nowait(data)
+                    except queue.Full:
+                        q.get()
+                        q.put_nowait(data)
+
+                time.sleep(.5)
+                print(" "*50, end="\r")
+                print(data, end="\r")
+
+            print("Fin del proceso de monitoreo")
+
+        except Exception as e:
+            print("ERROR:", e)
+
+    def start_plotting(self):
+        self.plotting = True
+        self.toggle_fields_tab2(False)
+
+    def stop_plotting(self):
+        self.plotting = False
+        self.toggle_fields_tab2(True)
+
+        # Clear all the data queues on stop
+        for var in self.data_queues:
+            varDict = self.data_queues.get(var)
+            with varDict.get("q").mutex:
+                varDict.get("q").queue.clear
+
+            varDict["data"] = []
+
+    def update_plots(self):
+        try:
+            param = self.data_queues.get("Temp")
+            q = param.get("q")
+            data = param.get("data")
+            window = param.get("window", 20)
+            
+            while self.plotting:
+                QtWidgets.QApplication.processEvents()
+
+                try:
+                    data += q.get_nowait()
+                except queue.Empty:
+                    break
+
+            param["data"] = data[-window:]
+            x = list(range(len(data)))
+
+            self.interface.curve1.setData(x, data)
+                
+        except Exception as e:
+            print("ERROR:", e)
+
 
     #Esta función se encarga de actualizar el combobox de id_protocol
     #según la opción seleccionada en el combobox de modo de operación,
@@ -94,14 +210,6 @@ class InputCollector:
         self.interface.box_id_protocol.clear()
         for id_protocol in compatible_id_protocols:
             self.interface.box_id_protocol.addItem(id_protocol)
-
-    #Esta función se encarga de guardar los datos en la MongoDB y retorna el
-    #diccionario con los datos recolectados
-    def get_and_save_config(self):
-        for key, value in self.config.items():
-            self.interface.consola_1.setText(self.interface.consola_1.toPlainText() + f"{key}: {value}\n")
-
-        #sql.insert_config(config)
 
     def update_id_protocol(self, index):
         # Update the instance values
@@ -158,6 +266,45 @@ class InputCollector:
         self.passw = val
         self.config["pass"] = self.passw
 
+    def toggle_fields_tab1(self, value: bool):
+        self.interface.boton_detener.setEnabled(not value)
+        self.interface.boton_configuracion.setEnabled(value)
+        self.interface.boton_inicio.setEnabled(value)
+        self.interface.selec_esp.setEnabled(value)
+        self.interface.box_acc_sampling.setEnabled(value)
+        self.interface.box_acc_sensibility.setEnabled(value)
+        self.interface.box_gyro_sensibility.setEnabled(value)
+        self.interface.box_bme_sampling.setEnabled(value)
+        self.interface.box_modo_op.setEnabled(value)
+        self.interface.box_id_protocol.setEnabled(value)
+        self.interface.text_disc_time.setEnabled(value)
+        self.interface.text_tcp_port.setEnabled(value)
+        self.interface.text_udp_port.setEnabled(value)
+        self.interface.text_host_ip.setEnabled(value)
+        self.interface.text_ssid.setEnabled(value)
+        self.interface.text_pass.setEnabled(value)
+
+    def toggle_fields_tab2(self, value: bool):
+        self.interface.boton_detener_graficar.setEnabled(not value)
+        self.interface.boton_graficar.setEnabled(value)
+        self.interface.selec_plot1.setEnabled(value)
+        self.interface.selec_plot2.setEnabled(value)
+        self.interface.selec_plot3.setEnabled(value)
+        
+
+# www.pyshine.com
+class Worker(QtCore.QRunnable):
+
+	def __init__(self, function, *args, **kwargs):
+		super(Worker, self).__init__()
+		self.function = function
+		self.args = args
+		self.kwargs = kwargs
+
+	@QtCore.pyqtSlot()
+	def run(self):
+
+		self.function(*self.args, **self.kwargs)
 
 if __name__ == "__main__":
     import sys

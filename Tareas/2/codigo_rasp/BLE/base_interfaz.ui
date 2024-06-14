@@ -908,14 +908,31 @@ color: rgb(255, 255, 255);</string>
     <widget class="QPushButton" name="boton_graficar">
      <property name="geometry">
       <rect>
-       <x>330</x>
+       <x>273</x>
        <y>560</y>
-       <width>93</width>
+       <width>94</width>
        <height>28</height>
       </rect>
      </property>
      <property name="styleSheet">
       <string notr="true">background-color: rgb(12, 85, 8);
+color: rgb(255, 255, 255);</string>
+     </property>
+     <property name="text">
+      <string>Graficar</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="boton_detener_graficar">
+     <property name="geometry">
+      <rect>
+       <x>397</x>
+       <y>560</y>
+       <width>94</width>
+       <height>28</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(103, 8, 8);
 color: rgb(255, 255, 255);</string>
      </property>
      <property name="text">

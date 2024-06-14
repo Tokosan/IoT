@@ -9,7 +9,7 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-
+from pyqtgraph import PlotWidget
 
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
@@ -174,14 +174,16 @@ class Ui_Dialog(object):
         self.Pestana_principal.addTab(self.tab, "")
         self.tab_2 = QtWidgets.QWidget()
         self.tab_2.setObjectName("tab_2")
-        self.plot1 = GraphicsLayoutWidget(self.tab_2)
+        self.plot1 = PlotWidget(self.tab_2)
         self.plot1.setGeometry(QtCore.QRect(30, 60, 691, 141))
         self.plot1.setStyleSheet("background-color: rgb(0, 0, 0);")
         self.plot1.setObjectName("plot1")
-        self.plot2 = GraphicsLayoutWidget(self.tab_2)
+        self.curve1 = self.plot1.plot(pen="r")
+        self.plot2 = PlotWidget(self.tab_2)
         self.plot2.setGeometry(QtCore.QRect(30, 230, 691, 141))
         self.plot2.setStyleSheet("background-color: rgb(0, 0, 0);")
         self.plot2.setObjectName("plot2")
+        self.curve2 = self.plot2.plot(pen="g")
         self.label_21 = QtWidgets.QLabel(self.tab_2)
         self.label_21.setGeometry(QtCore.QRect(40, 610, 141, 21))
         self.label_21.setStyleSheet("color: rgb(0, 0, 0);\n"
@@ -232,18 +234,24 @@ class Ui_Dialog(object):
         self.selec_plot3.addItem("")
         self.selec_plot3.addItem("")
         self.selec_plot3.addItem("")
-        self.plot3 = GraphicsLayoutWidget(self.tab_2)
+        self.plot3 = PlotWidget(self.tab_2)
         self.plot3.setGeometry(QtCore.QRect(30, 400, 691, 141))
         self.plot3.setStyleSheet("background-color: rgb(0, 0, 0);")
         self.plot3.setObjectName("plot3")
+        self.curve3 = self.plot3.plot(pen="b")
         self.label_25 = QtWidgets.QLabel(self.tab_2)
         self.label_25.setGeometry(QtCore.QRect(160, 370, 201, 31))
         self.label_25.setObjectName("label_25")
         self.boton_graficar = QtWidgets.QPushButton(self.tab_2)
-        self.boton_graficar.setGeometry(QtCore.QRect(330, 560, 93, 28))
+        self.boton_graficar.setGeometry(QtCore.QRect(273, 560, 94, 28))
         self.boton_graficar.setStyleSheet("background-color: rgb(12, 85, 8);\n"
 "color: rgb(255, 255, 255);")
         self.boton_graficar.setObjectName("boton_graficar")
+        self.boton_detener_graficar = QtWidgets.QPushButton(self.tab_2)
+        self.boton_detener_graficar.setGeometry(QtCore.QRect(397, 560, 94, 28))
+        self.boton_detener_graficar.setStyleSheet("background-color: rgb(103, 8, 8);\n"
+"color: rgb(255, 255, 255);")
+        self.boton_detener_graficar.setObjectName("boton_detener_graficar")
         self.Pestana_principal.addTab(self.tab_2, "")
 
         self.retranslateUi(Dialog)
@@ -326,9 +334,8 @@ class Ui_Dialog(object):
         self.selec_plot3.setItemText(5, _translate("Dialog", "RMS"))
         self.label_25.setText(_translate("Dialog", "Seleccionar variable a graficar en plot 3"))
         self.boton_graficar.setText(_translate("Dialog", "Graficar"))
+        self.boton_detener_graficar.setText(_translate("Dialog", "Detener"))
         self.Pestana_principal.setTabText(self.Pestana_principal.indexOf(self.tab_2), _translate("Dialog", "Pestaña de monitoreo"))
-from pyqtgraph import GraphicsLayoutWidget
-
 
 if __name__ == "__main__":
     import sys
