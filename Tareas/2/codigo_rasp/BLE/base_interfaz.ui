@@ -191,7 +191,7 @@ color: rgb(255, 255, 255);</string>
       <string>Discontinuos time</string>
      </property>
     </widget>
-    <widget class="QTextEdit" name="text_disc_time">
+    <widget class="QLineEdit" name="text_disc_time">
      <property name="geometry">
       <rect>
        <x>240</x>
