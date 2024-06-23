@@ -293,11 +293,11 @@ int socket_tcp(int port) {
     return 0;
 }
 
-byte4_t random_int_range(int min, int max) {
+byte4_t random_int(int min, int max) {
     return rand() % (max - min + 1) + min;
 }
 
-float random_float_range(float min, float max) {
+float random_float(float min, float max) {
     float base = (float)rand() / RAND_MAX;
     return base * (max - min) + min;
 }
@@ -305,7 +305,7 @@ float random_float_range(float min, float max) {
 // 0 1 2 3 4
 void append_battery(char *packet) {
     // generamos un numero aleatorio entre 1 y 100
-    byte1_t battery = random_int_range(1, 100);
+    byte1_t battery = random_int(1, 100);
     ESP_LOGI("append_battery", "Bateria: %d", battery);
     memcpy(packet + PACKET_SIZE_BASE, (byte1_t *)&battery, 1);
 }
@@ -318,10 +318,10 @@ void append_timestamp(char *packet) {
 
 // 2 3 4
 void append_thpc(char *packet) {
-    byte1_t temp = random_int_range(5, 30);
-    byte1_t hum = random_int_range(30, 80);
-    byte4_t pres = random_int_range(1000, 1200);
-    float co = random_float_range(30, 200);
+    byte1_t temp = random_int(5, 30);
+    byte1_t hum = random_int(30, 80);
+    byte4_t pres = random_int(1000, 1200);
+    float co = random_float(30, 200);
     memcpy(packet + PACKET_SIZE_P1, (byte1_t *)&temp, 1);
     memcpy(packet + PACKET_SIZE_P1 + 1, (byte1_t *)&hum, 1);
     memcpy(packet + PACKET_SIZE_P1 + 2, (byte1_t *)&pres, 4);
@@ -330,12 +330,12 @@ void append_thpc(char *packet) {
 
 // 3
 void append_imu(char *packet) {
-    float amp_x = random_float_range(0.0059, 0.12);
-    float amp_y = random_float_range(0.0041, 0.11);
-    float amp_z = random_float_range(0.0080, 0.15);
-    float freq_x = random_float_range(29.0, 31.0);
-    float freq_y = random_float_range(59.0, 61.0);
-    float freq_z = random_float_range(89.0, 91.0);
+    float amp_x = random_float(0.0059, 0.12);
+    float amp_y = random_float(0.0041, 0.11);
+    float amp_z = random_float(0.0080, 0.15);
+    float freq_x = random_float(29.0, 31.0);
+    float freq_y = random_float(59.0, 61.0);
+    float freq_z = random_float(89.0, 91.0);
     float rms = sqrt((amp_x * amp_x + amp_y * amp_y + amp_z * amp_z) / 3);
 
     memcpy(packet + PACKET_SIZE_P2, (byte1_t *)&rms, 4);
@@ -360,7 +360,7 @@ void send_packet(char *packet, int size) {
 // ------ PROTOCOLO 0 ------ //
 void protocol0() {
     char *packet;
-    byte2_t id_packet = random_int_range(0, 255) << 8;  // id compartida por distintos paquetes del mismo mensaje
+    byte2_t id_packet = random_int(0, 255) << 8;  // id compartida por distintos paquetes del mismo mensaje
     packet = create_base_packet(PACKET_SIZE_P0);
     set_id(packet, id_packet);
     append_battery(packet);
@@ -372,7 +372,7 @@ void protocol0() {
 // ------ PROTOCOLO 1 ------ //
 void protocol1() {
     char *packet;
-    byte2_t id_packet = random_int_range(0, 255) << 8;  // id compartida por distintos paquetes del mismo mensaje
+    byte2_t id_packet = random_int(0, 255) << 8;  // id compartida por distintos paquetes del mismo mensaje
     packet = create_base_packet(PACKET_SIZE_P1);
     set_id(packet, id_packet);
     append_battery(packet);
@@ -386,7 +386,7 @@ void protocol1() {
 // Battery | Timestamp | THPC //
 void protocol2() {
     char *packet;
-    byte2_t id_packet = random_int_range(0, 255) << 8;  // id compartida por distintos paquetes del mismo mensaje
+    byte2_t id_packet = random_int(0, 255) << 8;  // id compartida por distintos paquetes del mismo mensaje
     packet = create_base_packet(PACKET_SIZE_P2);
     set_id(packet, id_packet);
     append_battery(packet);
@@ -401,7 +401,7 @@ void protocol2() {
 // Battery | Timestamp | THPC | IMU //
 void protocol3() {
     char *packet;
-    byte2_t id_packet = random_int_range(0, 255) << 8;  // id compartida por distintos paquetes del mismo mensaje
+    byte2_t id_packet = random_int(0, 255) << 8;  // id compartida por distintos paquetes del mismo mensaje
     packet = create_base_packet(PACKET_SIZE_P3);
     set_id(packet, id_packet);
     append_battery(packet);
@@ -417,7 +417,7 @@ void protocol3() {
 // Battery | Timestamp | THPC | KPI //
 void protocol4() {
     char *packet;
-    byte1_t id_main = random_int_range(0, 255);  // id compartida por distintos paquetes del mismo mensaje
+    byte1_t id_main = random_int(0, 255);  // id compartida por distintos paquetes del mismo mensaje
     byte1_t n_packets = 49;                      // cantidad de paquetes de este mensaje
     byte2_t id_packet = (id_main << 8);          // leer README
     packet = create_base_packet(PACKET_SIZE_P4_S);
@@ -439,12 +439,12 @@ void protocol4() {
     float *r_gyr_z = (float *)malloc(2000 * 4);
 
     for (int i = 0; i < 2000; i++) {
-        acc_x[i] = random_float_range(-16.0, 16.0);
-        acc_y[i] = random_float_range(-16.0, 16.0);
-        acc_z[i] = random_float_range(-16.0, 16.0);
-        r_gyr_x[i] = random_float_range(-1000.0, 1000.0);
-        r_gyr_y[i] = random_float_range(-1000.0, 1000.0);
-        r_gyr_z[i] = random_float_range(-1000.0, 1000.0);
+        acc_x[i] = random_float(-16.0, 16.0);
+        acc_y[i] = random_float(-16.0, 16.0);
+        acc_z[i] = random_float(-16.0, 16.0);
+        r_gyr_x[i] = random_float(-1000.0, 1000.0);
+        r_gyr_y[i] = random_float(-1000.0, 1000.0);
+        r_gyr_z[i] = random_float(-1000.0, 1000.0);
     }
 
     float *arrays[6] = {acc_x, acc_y, acc_z, r_gyr_x, r_gyr_y, r_gyr_z};

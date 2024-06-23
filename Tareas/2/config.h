@@ -3,7 +3,6 @@
 
     typedef struct Config
     {
-
         int8_t status;
         int8_t ID_Protocol;
         int32_t BMI270_Sampling;
@@ -16,7 +15,7 @@
         int32_t Host_Ip_Addr;
         char Ssid[10];
         char Pass[10];
-    }Config;
+    } Config;
 
 #endif
 

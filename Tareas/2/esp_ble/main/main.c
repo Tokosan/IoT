@@ -1,19 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
-
-/****************************************************************************
-*
-* This demo showcases BLE GATT server. It can send adv data, be connected by client.
-* Run the gatt_client demo, the client demo will automatically connect to the gatt_server demo.
-* Client demo will enable gatt_server's notify after connection. The two devices will then exchange
-* data.
-*
-****************************************************************************/
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -683,15 +667,49 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
 }
 
 void app_main(void) {
-    esp_err_t ret;
-
+    
     // Initialize NVS.
+    esp_err_t ret;
     ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK( ret );
+
+        // Open
+    printf("\n");
+    printf("Opening Non-Volatile Storage (NVS) handle... ");
+    nvs_handle_t my_handle;
+    // Intentamos abrir el storage "config"
+    ret = nvs_open("config", NVS_READWRITE, &my_handle);
+    if (ret != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
+        return;
+    }
+    printf("Done\n");
+    // Read
+    printf("Reading restart counter from NVS ... ");
+    int32_t status = 0; // value will default to 0, if not set yet in NVS
+    ret = nvs_get_i32(my_handle, "status", &status);
+    switch (ret) {
+        case ESP_OK:
+            printf("Done\n");
+            printf("Restart counter = %d\n", restart_counter);
+            break;
+        case ESP_ERR_NVS_NOT_FOUND:
+            printf("The value is not initialized yet!\n");
+            printf("Setting to default value: 0\n");
+            err = nvs_set_i32(my_handle, "status", 0);
+            printf("Committing updates in NVS ... ");
+            err = nvs_commit(my_handle);
+            printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+            printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+            break;
+        default :
+            printf("Error (%s) reading!\n", esp_err_to_name(err));
+    }
+    nvs_close(my_handle);
 
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
 
