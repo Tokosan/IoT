@@ -77,9 +77,10 @@ def parse_timestamp(data: bytes) -> datetime.datetime:
 # 2 3 4 5
 def parse_thpc(data: bytes) -> dict:
     temperature = unpack('B', data[5:6])[0]
-    pressure = unpack('i', data[6:10])[0]
-    humidity = unpack('B', data[10:11])[0]
-    co = unpack('f', data[11:15])[0]
+    humidity = unpack('B', data[6:7])[0]
+    
+    pressure = unpack('i', data[7:11])[0]
+    co = unpack('i', data[11:15])[0]
 
     thpc = {
         "temp": temperature,
@@ -154,13 +155,10 @@ def parse_packet(data: bytes) -> None:
 
     # Get battery level (protocol 1, 2, 3, 4, 5)
     packet["batt_level"] = parse_battery(data)
-
-    # Get Timestamp
-    if protocol > 0:
-        packet["timestamp"] = parse_timestamp(data)
-
+    packet["timestamp"] = parse_timestamp(data)
+    
     # Get THPC data
-    if protocol > 1:
+    if protocol >= 2:
         packet.update(parse_thpc(data))
 
     # Get RMS data
