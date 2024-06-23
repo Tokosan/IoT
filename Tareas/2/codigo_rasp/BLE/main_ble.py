@@ -1,4 +1,5 @@
 import asyncio
+from packet_parser_BLE import parse_packet, generate_config
 from struct import unpack
 from bleak import BleakClient, BleakScanner
 ADDRESS = "C0:49:EF:08:D3:AE"
@@ -56,22 +57,22 @@ async def main():
     i = 1
     while True:
         try:
-            char_value = await client.read_gatt_char(CHARACTERISTIC_UUID)
-            print("Characterisic A:", char_value)
+            data = await client.read_gatt_char(CHARACTERISTIC_UUID)
+            print("Characterisic A:", data)
             break
         except:
             i += 1
             continue
-    print("Received len:", len(char_value))
-    protocol = unpack('B', char_value[0:1])
-    battery = unpack('B', char_value[1:2])
-    timestamp = unpack('i', char_value[2:6])
-    temperature = unpack('B', char_value[6:7])
-    print("protocol", protocol)
-    print("battery", battery)
-    print("timestamp", timestamp)
-    print("temperature", temperature)
+    print("Received len:", len(data))
+    packet = parse_packet(data)
+    print(packet)
     print(f"Took {i} tries")
+    print("Escribiendo...")
+    config = generate_config()
+    print(config)
+    await client.write_gatt_char(CHARACTERISTIC_UUID, config)
+    print("Listo!")
+    
 
 asyncio.run(main())
 
@@ -90,8 +91,8 @@ def convert_to_128bit_uuid(short_uuid):
 
 async def main(ADDRESS):
     async with BleakClient(ADDRESS) as client:
-        char_value = await client.read_gatt_char(CHARACTERISTIC_UUID)
-        print("Characterisic A {0}".format("".join(map(chr, char_value))))
+        data = await client.read_gatt_char(CHARACTERISTIC_UUID)
+        print("Characterisic A {0}".format("".join(map(chr, data))))
         # Luego podemos escribir en la caracteristica
         data = 'Hello World!'.encode()
         await client.write_gatt_char(CHARACTERISTIC_UUID, b"\x01\x00")

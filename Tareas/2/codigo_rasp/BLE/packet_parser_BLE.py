@@ -1,41 +1,40 @@
 import datetime
-from struct import unpack
-from input_collector import get_last_config
+from struct import unpack, pack
+from conexion_SQL import get_last_config
 
-def print_packet(packet: dict) -> None:
-    config = get_last_config()
-    protocol = int(config["id_protocol"])
-    # print(f"ID dispositivo:  {packet['id_device']}")
-    # print(f"MAC address:     {packet['mac']}")
-    # print(f"TL:              {packet['transport_layer']}")
-    # print(f"Protocolo:       {packet['protocol']}")
-    # print(f"Packet length:   {packet['packet_length']}")
-    print(f"Bateria:         {packet['batt_level']}")
-    if protocol > 0:
-        print(f"Timestamp:       {packet['timestamp']}")
-    if protocol > 1:
-        print(f"Temperatura:     {packet['temp']}")
-        print(f"Humedad:         {packet['hum']}")
-        print(f"Presion:         {packet['press']}")
-        print(f"CO:              {packet['co']}")
-    if protocol == 3:
-        print(f"RMS:             {packet['rms']}")
-    if protocol == 4:
-        print(f"RMS:             {packet['rms']}")
-        print(f"Amplitud X:      {packet['amp_x']}")
-        print(f"Frequencia X:    {packet['freq_x']}")
-        print(f"Amplitud Y:      {packet['amp_y']}")
-        print(f"Frequencia Y:    {packet['freq_y']}")
-        print(f"Amplitud Z:      {packet['amp_z']}")
-        print(f"Frequencia Z:    {packet['freq_z']}")
-    if protocol == 5:
-        print(f"Acc X:           [{packet['acc_x'][0]}, {packet['acc_x'][1]} ... ]")
-        print(f"Acc Y:           [{packet['acc_y'][0]}, {packet['acc_y'][1]} ... ]")
-        print(f"Acc Z:           [{packet['acc_z'][0]}, {packet['acc_z'][1]} ... ]")
-        print(f"Rotational X:    [{packet['r_gyr_x'][0]}, {packet['r_gyr_x'][1]} ... ]")
-        print(f"Rotational Y:    [{packet['r_gyr_y'][0]}, {packet['r_gyr_y'][1]} ... ]")
-        print(f"Rotational Z:    [{packet['r_gyr_z'][0]}, {packet['r_gyr_z'][1]} ... ]")
-    print("\n")
+# def print_packet(packet: dict) -> None:
+#     # config = get_last_config()
+#     protocol = int(config["id_protocol"])
+#     # print(f"ID dispositivo:  {packet['id_device']}")
+#     # print(f"MAC address:     {packet['mac']}")
+#     # print(f"TL:              {packet['transport_layer']}")
+#     # print(f"Protocolo:       {packet['protocol']}")
+#     # print(f"Packet length:   {packet['packet_length']}")
+#     print(f"Bateria:         {packet['batt_level']}")
+#     print(f"Timestamp:       {packet['timestamp']}")
+#     if protocol > 1:
+#         print(f"Temperatura:     {packet['temp']}")
+#         print(f"Humedad:         {packet['hum']}")
+#         print(f"Presion:         {packet['press']}")
+#         print(f"CO:              {packet['co']}")
+#     if protocol == 3:
+#         print(f"RMS:             {packet['rms']}")
+#     if protocol == 4:
+#         print(f"RMS:             {packet['rms']}")
+#         print(f"Amplitud X:      {packet['amp_x']}")
+#         print(f"Frequencia X:    {packet['freq_x']}")
+#         print(f"Amplitud Y:      {packet['amp_y']}")
+#         print(f"Frequencia Y:    {packet['freq_y']}")
+#         print(f"Amplitud Z:      {packet['amp_z']}")
+#         print(f"Frequencia Z:    {packet['freq_z']}")
+#     if protocol == 5:
+#         print(f"Acc X:           [{packet['acc_x'][0]}, {packet['acc_x'][1]} ... ]")
+#         print(f"Acc Y:           [{packet['acc_y'][0]}, {packet['acc_y'][1]} ... ]")
+#         print(f"Acc Z:           [{packet['acc_z'][0]}, {packet['acc_z'][1]} ... ]")
+#         print(f"Rotational X:    [{packet['r_gyr_x'][0]}, {packet['r_gyr_x'][1]} ... ]")
+#         print(f"Rotational Y:    [{packet['r_gyr_y'][0]}, {packet['r_gyr_y'][1]} ... ]")
+#         print(f"Rotational Z:    [{packet['r_gyr_z'][0]}, {packet['r_gyr_z'][1]} ... ]")
+#     print("\n")
 
 # LA CONEXION BLE NO TIENE HEADERS
 
@@ -66,7 +65,6 @@ def print_packet(packet: dict) -> None:
 def parse_battery(data: bytes) -> int:
     battery_level = unpack('B', data[0:1])[0]
     return battery_level
-
 
 # 1 2 3 4 5
 def parse_timestamp(data: bytes) -> datetime.datetime:
@@ -150,9 +148,12 @@ def parse_packet(data: bytes) -> None:
     # Parse the header data
     # packet.update(parse_header(data))
 
-    config = get_last_config()
-    protocol = int(config["id_protocol"])
+    # config = get_last_config()
+    # protocol = int(config["id_protocol"])
 
+    protocol = packet['protocol'] = unpack('B', data[0:1])[0]
+    data = data[1:]
+    
     # Get battery level (protocol 1, 2, 3, 4, 5)
     packet["batt_level"] = parse_battery(data)
     packet["timestamp"] = parse_timestamp(data)
@@ -162,11 +163,39 @@ def parse_packet(data: bytes) -> None:
         packet.update(parse_thpc(data))
 
     # Get RMS data
-    if protocol == 3:
+    if protocol == 3 or protocol == 4:
         packet.update(parse_rms(data))
 
     # Get IMU data
     if protocol == 4:
         packet.update(parse_imu(data))
-
+    
     return packet
+
+
+def generate_config():
+    config = get_last_config()
+    print(config)
+    packet = pack(
+        f'2B 7i {len(config["ssid"])+1}s {len(config["pass"])+1}s {len(config["host_ip_addr"])+1}s',
+        int(config["status"]),
+        int(config["id_protocol"]),
+        int(config["acc_sampling"]),
+        int(config["acc_sensibility"]),
+        int(config["gyro_sensibility"]),
+        int(config["bme668_sampling"]),
+        int(config["discontinuos_time"]),
+        int(config["tcp_port"]),
+        int(config["udp_port"]),
+        (config["ssid"] + '\0').encode(),
+        (config["pass"] + '\0').encode(),
+        (config["host_ip_addr"] + '\0').encode()
+    )
+    
+    return packet
+
+if __name__ == "__main__":
+    packet = generate_config()
+    # imprimimos el paquete en hexadecimal
+    data_string = packet.hex().upper()
+    print("Paquete: ", ' '.join(a + b for a,b in zip(data_string[::2], data_string[1::2])))

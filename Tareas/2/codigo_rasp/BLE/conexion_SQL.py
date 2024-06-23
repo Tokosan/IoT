@@ -1,4 +1,4 @@
-import mysql.connect
+import mysql.connector
 
 def get_connection():
     try:
@@ -25,7 +25,6 @@ def insert_config(config):
     cursor.close()
     cnx.close()
     
-    
 #Esta función se encarga de obtener la ultima configuración de la base de datos
 def get_last_config():
     cnx = get_connection()
@@ -35,12 +34,11 @@ def get_last_config():
     cursor.execute(query)
 
     config_tuple = cursor.fetchone()
-    config = tuple_to_dict(config_tuple) if config_tuple else None
+    config = tuple_to_dict(config_tuple) if config_tuple else None 
     cursor.close()
     cnx.close()
 
-    return config if config is not None else None
-
+    return config
 
 def delete_all_configurations():
     cnx = get_connection()
@@ -72,31 +70,32 @@ def tuple_to_dict(config_tuple):
 
 # TEST para probar la conexión a la base de datos
 
-# def main():
-#     # Crear un diccionario de configuración de ejemplo
-#     config = {
-#         'status': 0,
-#         'id_protocol': 1,
-#         'acc_sampling': 100,
-#         'acc_sensibility': 2,
-#         'gyro_sensibility': 200,
-#         'bme668_sampling': 50,
-#         'discontinuos_time': 5,
-#         'tcp_port': 8080,
-#         'udp_port': 8081,
-#         'host_ip_addr': '192.168.1.1',
-#         'ssid': 'my_ssid',
-#         'pass': 'my_password'
-#     }
+def main():
+    # Crear un diccionario de configuración de ejemplo
+    delete_all_configurations()
+    config = {
+        'status': 0,
+        'id_protocol': 2,
+        'acc_sampling': 100,
+        'acc_sensibility': 2,
+        'gyro_sensibility': 200,
+        'bme668_sampling': 50,
+        'discontinuos_time': 5,
+        'tcp_port': 8080,
+        'udp_port': 8081,
+        'host_ip_addr': '10.20.1.1',
+        'ssid': 'iot-wifi',
+        'pass': 'iotdcc123'
+    }
 
-#     # Insertar la configuración en la base de datos
-#     insert_config(config)
+    # Insertar la configuración en la base de datos
+    insert_config(config)
 
-#     # Obtener la última configuración de la base de datos
-#     last_config = get_last_config()
+    # Obtener la última configuración de la base de datos
+    last_config = get_last_config()
 
-#     # Imprimir la última configuración
-#     print(last_config)
+    # Imprimir la última configuración
+    print(last_config)
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
