@@ -5,17 +5,6 @@ from bleak import BleakClient, BleakScanner
 ADDRESS = "C0:49:EF:08:D3:AE"
 CHARACTERISTIC_UUID = "0000FF01-0000-1000-8000-00805F9B34FB"
 
-async def discover():
-    # Con esto podemos ver los dispositivos que estan disponibles
-    scanner = BleakScanner()
-    devices = await scanner.discover()
-    print("Devices:")
-            # c0:49:ef:08:d3:ae 
-    print("+-------MAC-------+--------------------------+")
-    for device in devices:
-        print("",device)
-    return devices
-
 async def connect(device_mac):
     # Con esto nos conectamos a un dispositivo
     client = BleakClient(device_mac)
@@ -54,24 +43,18 @@ async def main():
     print(f"Connected (after {i} tries)")
     # async with client:
     print("Here we are at the async with, with client", client)
-    i = 1
-    while True:
-        try:
-            data = await client.read_gatt_char(CHARACTERISTIC_UUID)
-            print("Characterisic A:", data)
-            break
-        except:
-            i += 1
-            continue
-    print("Received len:", len(data))
-    packet = parse_packet(data)
-    print(packet)
-    print(f"Took {i} tries")
+
     print("Escribiendo...")
     config = generate_config()
     print(config)
     await client.write_gatt_char(CHARACTERISTIC_UUID, config)
     print("Listo!")
+    
+    data = await client.read_gatt_char(CHARACTERISTIC_UUID)
+    print("Characterisic A:", data)
+    print("Received len:", len(data))
+    packet = parse_packet(data)
+    print(packet)
     
 
 asyncio.run(main())
