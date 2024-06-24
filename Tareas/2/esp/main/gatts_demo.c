@@ -191,19 +191,21 @@ int packet_len[] = {
 
 typedef struct Config {
     int32_t status;
-    int32_t ID_Protocol;
-    int32_t BMI270_Sampling;
-    int32_t BMI270_Acc_Sensibility;
-    int32_t BMI270_Gyro_Sensibility;
-    int32_t BME688_Sampling;
-    int32_t Discontinuous_Time;
-    int32_t Port_TCP;
-    int32_t Port_UDP;
-    char Host_Ip_Addr[16];
-    char Ssid[10];
-    char Pass[10];
+    int32_t id_protocol;
+    int32_t bmi_samp;
+    int32_t acc_sens;
+    int32_t gyr_sens;
+    int32_t bme_samp;
+    int32_t disc_time;
+    int32_t tcp_port;
+    int32_t udp_port;
+    char host_ip_addr[16];
+    char ssid[10];
+    char pass[10];
 } Config;
 
+
+Config config;
 int protocol;
 int TL;
 byte1_t *packet;
@@ -225,7 +227,10 @@ struct gatts_profile_inst {
 };
 
 void generate_packet();
-void set_config(Config config);
+void set_config();
+void get_config();
+void print_config();
+
 
 /* One gatt-based profile one app_id and one gatts_if, this array will store the gatts_if returned by ESP_GATTS_REG_EVT */
 static struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
@@ -416,6 +421,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         rsp.attr_value.handle = param->read.handle;
 
         // generamos el paquete correspondiente
+        protocol = config.id_protocol;
         generate_packet();
 
         rsp.attr_value.len = packet_len[protocol];
@@ -429,74 +435,60 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     case ESP_GATTS_WRITE_EVT: {
         ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, conn_id %d, trans_id %" PRIu32 ", handle %d", param->write.conn_id, param->write.trans_id, param->write.handle);
         if (!param->write.is_prep) {
-
-            printf("Sunlight! len: %d\n", param->write.len);
+            printf("Configuracion recibida: ");
             // since write.value is a uint8_t*, we write it as hexadecimal
-            printf("Moth! value: ");
             for (int i = 0; i < param->write.len; i++) {
                 printf("%02x ", param->write.value[i]);
             }
-            printf("Creating data\n");
             uint8_t *data = param->write.value;
-            
-
-            printf("Data created\n");
             // si es que recibimos algo aca entonces es una configuracion y tenemos que guardarla!
-            Config config;
-            printf("Starting with single byte integers... ");
             config.status = data[0];
-            config.ID_Protocol = data[1];
-            printf("Done!\n");
-            
+            config.id_protocol = data[1];            
             
             // HARDCODEADO!!!
-            // no se por que, pero aparecen dos bytes nada que ver al principio
+            // no se por que
             data += 2;
+            // pero aparecen dos bytes nada que ver al principio
+            // HARDCODEADO!!!
 
 
 
-            printf("Starting with 4 byte integers... ");
-            config.BMI270_Sampling = (data[5] << 24) | (data[4] << 16) | (data[3] << 8) | data[2];
-            config.BMI270_Acc_Sensibility = (data[9] << 24) | (data[8] << 16) | (data[7] << 8) | data[6];
-            config.BMI270_Gyro_Sensibility = (data[13] << 24) | (data[12] << 16) | (data[11] << 8) | data[10];
-            config.BME688_Sampling = (data[17] << 24) | (data[16] << 16) | (data[15] << 8) | data[14];
-            config.Discontinuous_Time = (data[21] << 24) | (data[20] << 16) | (data[19] << 8) | data[18];
-            config.Port_TCP = (data[25] << 24) | (data[24] << 16) | (data[23] << 8) | data[22];
-            config.Port_UDP = (data[29] << 24) | (data[28] << 16) | (data[27] << 8) | data[26];
-            printf("Done!\n");
+            config.bmi_samp = (data[5] << 24) | (data[4] << 16) | (data[3] << 8) | data[2];
+            config.acc_sens = (data[9] << 24) | (data[8] << 16) | (data[7] << 8) | data[6];
+            config.gyr_sens = (data[13] << 24) | (data[12] << 16) | (data[11] << 8) | data[10];
+            config.bme_samp = (data[17] << 24) | (data[16] << 16) | (data[15] << 8) | data[14];
+            config.disc_time = (data[21] << 24) | (data[20] << 16) | (data[19] << 8) | data[18];
+            config.tcp_port = (data[25] << 24) | (data[24] << 16) | (data[23] << 8) | data[22];
+            config.udp_port = (data[29] << 24) | (data[28] << 16) | (data[27] << 8) | data[26];
 
-
-            printf("Starting with strings... ");
             int i = 30;
             int j = 0;
             while (data[i] != 0) {
-                config.Ssid[j] = data[i];
+                config.ssid[j] = data[i];
                 i++;
                 j++;
             }
-            config.Ssid[j] = 0;
-            printf("SSID: %s\n", config.Ssid);
+            config.ssid[j] = 0;
             i++;
             j = 0;
             while (data[i] != 0) {
-                config.Pass[j] = data[i];
+                config.pass[j] = data[i];
                 i++;
                 j++;
             }
-            config.Pass[j] = 0;
-            printf("Pass: %s\n", config.Pass);
+            config.pass[j] = 0;
             i++;
             j = 0;
             while (data[i] != 0) {
-                config.Host_Ip_Addr[j] = data[i];
+                config.host_ip_addr[j] = data[i];
                 i++;
                 j++;
             }
-            config.Host_Ip_Addr[j] = 0;
-            printf("Host: %s\n", config.Host_Ip_Addr);
+            config.host_ip_addr[j] = 0;
 
-            // guardamos la configuracion en la memoria flash
-            set_config(config);
+            // guardamos la configuracion en NVS
+            print_config();
+            set_config();
 
             ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
             ESP_LOG_BUFFER_HEX(GATTS_TAG, param->write.value, param->write.len);
@@ -669,9 +661,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
 void print_packet() {
     // 1. Bateria
     printf("Bateria:      %d\n", packet[1]);
-    // 2. Timestamp
-    if (protocol >= 1)
-        printf("Timestamp:    %d\n", (packet[5] << 24) | (packet[4] << 16) | (packet[3] << 8) | packet[2]);
+    printf("Timestamp:    %d\n", (packet[5] << 24) | (packet[4] << 16) | (packet[3] << 8) | packet[2]);
     // 3. THPC
     if (protocol >= 2) {
         printf("Temperatura:  %d\n", packet[6]);
@@ -940,7 +930,7 @@ void send_packet_wifi(char *packet, int size) {
 
 void generate_packet() {
     packet = (byte1_t *)malloc(packet_len[protocol]);
-    packet[0] = (byte1_t)protocol;  // ID_PROTOCOL
+    packet[0] = (byte1_t)protocol;  // id_protocol
     append_battery();
     append_timestamp();
     if (protocol >= 2) {
@@ -990,35 +980,6 @@ void create_arrays() {
 // func_ptr_prot func_protocol_array[5] = {protocol0, protocol1, protocol2, protocol3, protocol4};
 // func_ptr_sock func_socket_array[2] = {socket_tcp, socket_udp};
 
-// int check_changes() {
-//     ESP_LOGI("check_changes", "Revisando si hubo cambios en el protocolo o TL");
-//     char rx_buffer[128];
-//     int rx_len = recv(main_socket, rx_buffer, sizeof(rx_buffer) - 1, 0);
-//     if (rx_len < 0) {
-//         ESP_LOGE("check_changes", "Error al recibir datos");
-//         return -1;
-//     }
-
-//     if (rx_len == 0) {
-//         ESP_LOGI("check_changes", "No se recibieron datos");
-//         return -1;
-//     }
-
-//     if (rx_len != 2) {
-//         ESP_LOGI("check_changes", "Se recibio otro mensaje: %s", rx_buffer);
-//         return -1;
-//     }
-
-//     if (rx_buffer[0] != protocol || rx_buffer[1] != TL) {
-//         protocol = rx_buffer[0];
-//         TL = rx_buffer[1];
-//         ESP_LOGI("check_changes", "Nueva configuracion: protocolo %c, TL %c", protocol, TL);
-//         return 1;
-//     }
-
-//     return 0;
-// }
-
 // void start_communication() {
 //     // invocamos a la funcion correspondiente segun protocol y TL
 //     int res;
@@ -1067,39 +1028,6 @@ void create_arrays() {
 //     close(main_socket);
 //     close(comm_socket);
 //     free(header);
-// }
-
-// int get_ids() {
-//     ESP_LOGI("get_ids", "Solicitando protocolo y capa de transporte");
-//     char *buff = malloc(strlen("get_ids") + 4);
-//     char *getter = "get_ids";
-//     memcpy(buff, getter, strlen(getter));
-//     byte4_t t = time(NULL);
-//     memcpy(buff + strlen(getter), (byte1_t *)&t, 4);
-//     send(main_socket, buff, 11, 0);
-//     free(buff);
-
-//     // esperamos la respuesta para decidir que hacer
-//     char rx_buffer[128];
-//     int max_try = 2;
-//     while (max_try--) {
-//         int rx_len = recv(main_socket, rx_buffer, sizeof(rx_buffer) - 1, 0);
-//         printf("rx_len: %d\n", rx_len);
-//         if (rx_len < 0) {
-//             ESP_LOGE(TAG, "Error al recibir datos");
-//             max_try--;
-//         } else {
-//             break;
-//         }
-//     }
-
-//     if (max_try == 0)
-//         return -2;
-
-//     protocol = rx_buffer[0];
-//     TL = rx_buffer[1];
-//     ESP_LOGI("get_ids", "Protocolo: %c, TL: %c", protocol, TL);
-//     return 0;
 // }
 
 /**
@@ -1166,11 +1094,12 @@ void set_status(int new_status) {
     nvs_close(my_handle);
 }
 
-void set_config(Config config) {
+void set_config() {
     // Open
     printf("\n");
     printf("Opening Non-Volatile Storage (NVS) handle... ");
     nvs_handle_t my_handle;
+
     // Intentamos abrir el storage "config"
     esp_err_t ret = nvs_open("config", NVS_READWRITE, &my_handle);
     if (ret != ESP_OK) {
@@ -1180,34 +1109,114 @@ void set_config(Config config) {
     printf("Done\n");
 
     // Set
-    printf("Setting status in NVS: %ld ... \n", config.status);
     ret = nvs_set_i32(my_handle, "status", config.status);
-    printf("Setting protocol in NVS: %ld ... \n", config.ID_Protocol);
-    ret = nvs_set_i32(my_handle, "ID_Protocol", config.ID_Protocol);
-    printf("Setting BMI Sampling Rate in NVS: %ld ... \n", config.BMI270_Sampling);
-    ret = nvs_set_i32(my_handle, "BMI270_Sampling", config.BMI270_Sampling);
-    printf("Setting BMI Accel Sensibility in NVS: %ld ... \n", config.BMI270_Acc_Sensibility);
-    ret = nvs_set_i32(my_handle, "BMI270_Acc_Sensibility", config.BMI270_Acc_Sensibility);
-    printf("Setting BMI Gyro Sensibility in NVS: %ld ... \n", config.BMI270_Gyro_Sensibility);
-    ret = nvs_set_i32(my_handle, "BMI270_Gyro_Sensibility", config.BMI270_Gyro_Sensibility);
-    printf("Setting Discontinuous Time in NVS: %ld ... \n", config.Discontinuous_Time);
-    ret = nvs_set_i32(my_handle, "Discontinuous_Time", config.Discontinuous_Time);
-    printf("Setting Port TCP in NVS: %ld ... \n", config.Port_TCP);
-    ret = nvs_set_i32(my_handle, "Port_TCP", config.Port_TCP);
-    printf("Setting Port UDP in NVS: %ld ... \n", config.Port_UDP);
-    ret = nvs_set_i32(my_handle, "Port_UDP", config.Port_UDP);
-    printf("Setting SSID in NVS: %s ... \n", config.Ssid);
-    ret = nvs_set_str(my_handle, "SSID", config.Ssid);
-    printf("Setting Password in NVS: %s ... \n", config.Pass);
-    ret = nvs_set_str(my_handle, "Pass", config.Pass);
-    printf("Setting Server IP in NVS: %s ... \n", config.Host_Ip_Addr);
-    ret = nvs_set_str(my_handle, "Host_Ip_Addr", config.Host_Ip_Addr);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting status!\n", esp_err_to_name(ret));
+        return;
+    }
+    ret = nvs_set_i32(my_handle, "id_protocol", config.id_protocol);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting id_protocol!\n", esp_err_to_name(ret));
+        return;
+    }
+    ret = nvs_set_i32(my_handle, "bmi_samp", config.bmi_samp);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting bmi_samp!\n", esp_err_to_name(ret));
+        return;
+    }
+    ret = nvs_set_i32(my_handle, "acc_sens", config.acc_sens);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting acc_sens!\n", esp_err_to_name(ret));
+        return;
+    }
+    ret = nvs_set_i32(my_handle, "gyr_sens", config.gyr_sens);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting gyr_sens!\n", esp_err_to_name(ret));
+        return;
+    }
+    ret = nvs_set_i32(my_handle, "disc_time", config.disc_time);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting disc_time!\n", esp_err_to_name(ret));
+        return;
+    }
+    ret = nvs_set_i32(my_handle, "tcp_port", config.tcp_port);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting tcp_port!\n", esp_err_to_name(ret));
+        return;
+    }
+    ret = nvs_set_i32(my_handle, "udp_port", config.udp_port);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting udp_port!\n", esp_err_to_name(ret));
+        return;
+    }
+    ret = nvs_set_str(my_handle, "ssid", config.ssid);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting ssid!\n", esp_err_to_name(ret));
+        return;
+    }
+    ret = nvs_set_str(my_handle, "pass", config.pass);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting pass!\n", esp_err_to_name(ret));
+        return;
+    }
+    ret = nvs_set_str(my_handle, "host_ip_addr", config.host_ip_addr);
+    if (ret != ESP_OK) {
+        printf("Error (%s) setting host_ip_addr!\n", esp_err_to_name(ret));
+        return;
+    }
 
-    printf((ret != ESP_OK) ? "Failed!\n" : "Done\n");
     printf("Committing updates in NVS ... ");
     ret = nvs_commit(my_handle);
     printf((ret != ESP_OK) ? "Failed!\n" : "Done\n");
     nvs_close(my_handle);
+}
+
+void get_config() {
+    // Open
+    printf("\n");
+    printf("Opening Non-Volatile Storage (NVS) handle... ");
+    nvs_handle_t my_handle;
+
+    // Intentamos abrir el storage "config"
+    esp_err_t ret = nvs_open("config", NVS_READWRITE, &my_handle);
+    if (ret != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
+        return;
+    }
+    printf("Done\n");
+
+    // Read
+    printf("Reading status from NVS ... ");
+    nvs_get_i32(my_handle, "status", &config.status);
+    nvs_get_i32(my_handle, "id_protocol", &config.id_protocol);
+    nvs_get_i32(my_handle, "bmi_samp", &config.bmi_samp);
+    nvs_get_i32(my_handle, "acc_sens", &config.acc_sens);
+    nvs_get_i32(my_handle, "gyr_sens", &config.gyr_sens);
+    nvs_get_i32(my_handle, "disc_time", &config.disc_time);
+    nvs_get_i32(my_handle, "tcp_port", &config.tcp_port);
+    nvs_get_i32(my_handle, "udp_port", &config.udp_port);
+    size_t wifi_len = 10;
+    size_t host_len = 16;
+    nvs_get_str(my_handle, "ssid", config.ssid, &wifi_len);
+    nvs_get_str(my_handle, "pass", config.pass, &wifi_len);
+    nvs_get_str(my_handle, "host_ip_addr", config.host_ip_addr, &host_len);
+}
+
+void print_config() {
+    printf("\n");
+    printf("--------------------------------------------------\n");
+    printf("Status:       %ld\n", config.status);
+    printf("id_protocol:  %ld\n", config.id_protocol);
+    printf("bmi_samp:     %ld\n", config.bmi_samp);
+    printf("acc_sens:     %ld\n", config.acc_sens);
+    printf("gyr_sens:     %ld\n", config.gyr_sens);
+    printf("disc_time:    %ld\n", config.disc_time);
+    printf("tcp_port:     %ld\n", config.tcp_port);
+    printf("udp_port:     %ld\n", config.udp_port);
+    printf("ssid:         %s\n", config.ssid);
+    printf("pass:         %s\n", config.pass);
+    printf("host_ip_addr: %s\n", config.host_ip_addr);
+    printf("--------------------------------------------------\n");
 }
 
 void app_main(void) {
@@ -1225,16 +1234,10 @@ void app_main(void) {
         return;
     }
 
-    get_status();
-    printf("State (get_status) %ld\n", status);
+    get_config();
+    print_config();
 
-    set_status(1);
-    printf("State (set_status) %ld\n", status);
-
-    get_status();
-    printf("State (get_status) %ld\n", status);
-
-    protocol = 3;
+    protocol = config.id_protocol;
 
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
 
@@ -1283,6 +1286,11 @@ void app_main(void) {
         ESP_LOGE(GATTS_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
 
+
+    if (status == 0) {
+        // estamos en proceso de configuracion, asi que no hacemos nada y
+        // retornamos para esperar el evento de configuracion
+    }
     return;
 
     // srand(time(NULL));
