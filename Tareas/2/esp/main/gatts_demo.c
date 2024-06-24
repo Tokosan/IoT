@@ -37,7 +37,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 #define GATTS_CHAR_UUID_A 0xFF01  // Caracteristicas
 #define GATTS_DESCR_UUID_A 0x3333
 #define GATTS_NUM_HANDLE_A 4
-#define TEST_DEVICE_NAME "ESP_GATTS_DEMO"
+#define DEVICE_NAME "ESP 32"
 #define TEST_MANUFACTURER_DATA_LEN 17
 #define GATTS_DEMO_CHAR_VAL_LEN_MAX 0x40
 #define PREPARE_BUF_MAX_SIZE 1024
@@ -48,7 +48,7 @@ int32_t status;
 // Credenciales (seran entregadas por BLE)
 char *WIFI_SSID = "iot-wifi";
 char *WIFI_PASSWORD = "iotdcc123";
-char* SERVER_IP = "10.20.1.1";
+char *SERVER_IP = "10.20.1.1";
 // Puertos (seran entregados por BLE)
 int SERVER_PORT = 1235;
 int SERVER_COMM_PORT = 12350;
@@ -71,8 +71,6 @@ static esp_attr_value_t gatts_demo_char1_val = {
 static uint8_t adv_config_done = 0;
 #define adv_config_flag (1 << 0)
 #define scan_rsp_config_flag (1 << 1)
-
-
 
 static uint8_t adv_service_uuid128[32] = {
     /* LSB <--------------------------------------------------------------------------------> MSB */
@@ -204,7 +202,6 @@ typedef struct Config {
     char pass[10];
 } Config;
 
-
 Config config;
 int protocol;
 int TL;
@@ -230,7 +227,6 @@ void generate_packet();
 void set_config();
 void get_config();
 void print_config();
-
 
 /* One gatt-based profile one app_id and one gatts_if, this array will store the gatts_if returned by ESP_GATTS_REG_EVT */
 static struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
@@ -382,7 +378,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         gl_profile_tab[PROFILE_APP_ID].service_id.id.uuid.len = ESP_UUID_LEN_16;
         gl_profile_tab[PROFILE_APP_ID].service_id.id.uuid.uuid.uuid16 = GATTS_SERVICE_UUID_A;
 
-        esp_err_t set_dev_name_ret = esp_ble_gap_set_device_name(TEST_DEVICE_NAME);
+        esp_err_t set_dev_name_ret = esp_ble_gap_set_device_name(DEVICE_NAME);
         if (set_dev_name_ret) {
             ESP_LOGE(GATTS_TAG, "set device name failed, error code = %x", set_dev_name_ret);
         }
@@ -443,15 +439,13 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             uint8_t *data = param->write.value;
             // si es que recibimos algo aca entonces es una configuracion y tenemos que guardarla!
             config.status = data[0];
-            config.id_protocol = data[1];            
-            
+            config.id_protocol = data[1];
+
             // HARDCODEADO!!!
             // no se por que
             data += 2;
             // pero aparecen dos bytes nada que ver al principio
             // HARDCODEADO!!!
-
-
 
             config.bmi_samp = (data[5] << 24) | (data[4] << 16) | (data[3] << 8) | data[2];
             config.acc_sens = (data[9] << 24) | (data[8] << 16) | (data[7] << 8) | data[6];
@@ -869,9 +863,9 @@ void append_timestamp() {
 // 2 3 4 5
 void append_thpc() {
     byte1_t temp = random_int(5, 30);
-    byte1_t hum  = random_int(30, 80);
+    byte1_t hum = random_int(30, 80);
     byte4_t pres = random_int(1000, 1200);
-    byte4_t co   = random_int(30, 200);
+    byte4_t co = random_int(30, 200);
     printf("Temperatura: %d\n", temp);
     printf("Humedad: %d\n", hum);
     printf("Presion: %ld\n", pres);
@@ -1266,26 +1260,25 @@ void app_main(void) {
     }
 
     ret = esp_ble_gatts_register_callback(gatts_event_handler);
-    if (ret){
+    if (ret) {
         ESP_LOGE(GATTS_TAG, "gatts register error, error code = %x", ret);
         return;
     }
     ret = esp_ble_gap_register_callback(gap_event_handler);
-    if (ret){
+    if (ret) {
         ESP_LOGE(GATTS_TAG, "gap register error, error code = %x", ret);
         return;
     }
     ret = esp_ble_gatts_app_register(PROFILE_APP_ID);
-    if (ret){
+    if (ret) {
         ESP_LOGE(GATTS_TAG, "gatts app register error, error code = %x", ret);
         return;
     }
 
     esp_err_t local_mtu_ret = esp_ble_gatt_set_local_mtu(500);
-    if (local_mtu_ret){
+    if (local_mtu_ret) {
         ESP_LOGE(GATTS_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
-
 
     if (status == 0) {
         // estamos en proceso de configuracion, asi que no hacemos nada y

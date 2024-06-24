@@ -84,7 +84,7 @@ def insert_config(config):
 
     
 #Esta función se encarga de obtener la ultima configuración de la base de datos
-def get_last_config():
+def get_config():
     connect()
     cursor = conn.cursor()
     # Obtenemos la ultima configuración insertada

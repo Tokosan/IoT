@@ -1,24 +1,37 @@
-#import conexion_SQL as sql
 from PyQt5 import QtWidgets, QtCore
 from base_interfaz import Ui_Dialog
 import asyncio
 import queue
 import time, random
-import db as sql
+import db
 from bleak import BleakClient, BleakScanner
+from parser import encode_config
 
 CHARACTERISTIC_UUID = "0000FF01-0000-1000-8000-00805F9B34FB"
 
 async def scan():
     # Con esto podemos ver los dispositivos que estan disponibles
-    scanner = BleakScanner()
-    devices = await scanner.discover()
-    print("Devices:")
-    # c0:49:ef:08:d3:ae 
-    print("+-------MAC-------+--------------------------+")
-    for device in devices:
-        print("",device)
-    return devices
+    # scanner = BleakScanner()
+    # devices = await scanner.discover()
+    # esps = []
+    # for device in devices:
+    #     if "ESP" in device.name:
+    #         esps.append(device.address)
+    # return esps
+    return ["MAC1", "MAC2"]
+
+async def send_config(mac, config):
+    client = BleakClient(mac)
+    print("Trying to connect to: ", client)
+    i = 0
+    while True:
+        i += 1
+        try:
+            await client.connect()
+            break
+        except:
+            continue
+    print(f"Connected (after {i} tries)")    
 
 #Esta clase se encarga de recolectar los datos de la interfaz
 #y guardarlos en la base de datos de configuración
@@ -70,6 +83,7 @@ class InputCollector:
         self.interface.box_gyro_sensibility.addItems(self.gyro_sensibilities.get("options", []))
         self.interface.box_bme_sampling.addItems(self.bme688_samplings.get("options", []))
 
+        self.interface.selec_esp.currentIndexChanged.connect(self.update_device)
         self.interface.box_id_protocol.currentIndexChanged.connect(self.update_id_protocol)
         self.interface.box_acc_sampling.currentIndexChanged.connect(self.update_acc_sampling)
         self.interface.box_acc_sensibility.currentIndexChanged.connect(self.update_acc_sensibility)
@@ -123,14 +137,35 @@ class InputCollector:
         self.interface.boton_detener_graficar.clicked.connect(self.stop_plotting)
 
     def scan_devices(self):
-        asyncio.run(scan())
+        devices = asyncio.run(scan())
+        for device in devices:
+            self.interface.selec_esp.addItem(device)
 
     #Esta función se encarga de guardar los datos en la MongoDB y retorna el
     #diccionario con los datos recolectados
     def get_and_save_config(self):
+        self.config = {
+            "status": self.op_mode.get("current").get("value", 0),
+            "id_protocol": self.id_protocol,
+            "acc_sampling": self.acc_samplings.get("current"),
+            "acc_sensibility": self.acc_sensibilities.get("current"),
+            "gyro_sensibility": self.gyro_sensibilities.get("current"),
+            "bme668_sampling": self.bme688_samplings.get("current"),
+            "discontinuos_time": self.discontinuos_time,
+            "tcp_port": self.tcp_port,
+            "udp_port": self.udp_port,
+            "host_ip_addr": self.host_ip_addr,
+            "ssid": self.ssid,
+            "pass": self.passw
+        }
         for key, value in self.config.items():
-            self.interface.consola_1.setText(self.interface.consola_1.toPlainText() + f"{key}: {value}\n")
-        sql.insert_config(self.config)
+            print(f"{key}: {value}")
+        db.insert_config(self.config)
+        config = encode_config()
+        print(config)
+        send_config(self.mac, config)
+        
+        
 
     def start_worker(self):
         self.toggle_fields_tab1(False)
@@ -157,8 +192,8 @@ class InputCollector:
             while self.monitoring:
                 # DATA DE PRUEBA
                 data = [random.randint(5, 30) for i in range(5)]
+                
                 if self.plotting:
-
                     q = self.data_queues.get("Temp").get("q")
                     try:
                         q.put_nowait(data)
@@ -214,6 +249,8 @@ class InputCollector:
         except Exception as e:
             print("ERROR:", e)
 
+    def update_device(self, index):
+        self.mac = self.interface.selec_esp.itemText(index)
 
     #Esta función se encarga de actualizar el combobox de id_protocol
     #según la opción seleccionada en el combobox de modo de operación,
