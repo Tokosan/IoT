@@ -2,15 +2,29 @@
 Este es el codigo principal
 
 Al ejecutarlo se inicia la interfaz grafica con los controles de la aplicacion
-
-La logica se encuentra en el archivo controller.py
 """
 
-# import conexion_SQL as sql
+#import conexion_SQL as sql
 from PyQt5 import QtWidgets, QtCore
 from base_interfaz import Ui_Dialog
+import asyncio
 import queue
 import time, random
+import db as sql
+from bleak import BleakClient, BleakScanner
+
+CHARACTERISTIC_UUID = "0000FF01-0000-1000-8000-00805F9B34FB"
+
+async def scan():
+    # Con esto podemos ver los dispositivos que estan disponibles
+    scanner = BleakScanner()
+    devices = await scanner.discover()
+    print("Devices:")
+    # c0:49:ef:08:d3:ae 
+    print("+-------MAC-------+--------------------------+")
+    for device in devices:
+        print("",device)
+    return devices
 
 #Esta clase se encarga de recolectar los datos de la interfaz
 #y guardarlos en la base de datos de configuración
@@ -21,6 +35,7 @@ class InputCollector:
         # cuando se aprete el boton configuracion se obtienen los datos de los campos
         # y se guardan en la base de datos
         self.interface.boton_configuracion.clicked.connect(self.get_and_save_config)
+        self.interface.boton_configuracion_3.clicked.connect(self.scan_devices)
 
         # Mapeo de las opciones del combobox a los id_protocol compatibles
         self.op_mode = {"options": [
@@ -49,6 +64,8 @@ class InputCollector:
         self.host_ip_addr = "10.20.1.1"
         self.ssid = "iot-wifi"
         self.passw = "iotdcc123"
+
+        self.mac = ""
 
         self.interface.box_modo_op.addItems([mode.get("name") for mode in self.op_mode.get("options")])
         self.interface.box_modo_op.currentIndexChanged.connect(self.update_op_mode)
@@ -111,13 +128,15 @@ class InputCollector:
         self.interface.boton_graficar.clicked.connect(self.start_plotting)
         self.interface.boton_detener_graficar.clicked.connect(self.stop_plotting)
 
+    def scan_devices(self):
+        asyncio.run(scan())
+
     #Esta función se encarga de guardar los datos en la MongoDB y retorna el
     #diccionario con los datos recolectados
     def get_and_save_config(self):
         for key, value in self.config.items():
             self.interface.consola_1.setText(self.interface.consola_1.toPlainText() + f"{key}: {value}\n")
-
-        #sql.insert_config(config)
+        sql.insert_config(self.config)
 
     def start_worker(self):
         self.toggle_fields_tab1(False)
@@ -200,6 +219,7 @@ class InputCollector:
                 
         except Exception as e:
             print("ERROR:", e)
+
 
     #Esta función se encarga de actualizar el combobox de id_protocol
     #según la opción seleccionada en el combobox de modo de operación,

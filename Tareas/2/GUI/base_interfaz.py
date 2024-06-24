@@ -263,7 +263,7 @@ class Ui_Dialog(object):
         Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
         self.label_4.setText(_translate("Dialog", "Botones de configuracion"))
         self.boton_inicio_2.setText(_translate("Dialog", "Inicio"))
-        self.boton_configuracion_3.setText(_translate("Dialog", "Seleccion ESP-32"))
+        self.boton_configuracion_3.setText(_translate("Dialog", "Escanear BLE"))
         self.boton_configuracion.setText(_translate("Dialog", "Configurar"))
         self.label_7.setText(_translate("Dialog", "Acc Sampling"))
         self.label_1.setText(_translate("Dialog", "Esp32 disponibles por bluetooth"))

@@ -1,15 +1,12 @@
 import socket
 import struct
 
-from utils import *
-from models import *
 from protocolos import start_communication
 from sys import argv
 
 HOST = '0.0.0.0' # Escucha en todas las interfaces disponibles
 PORT =  int(argv[1])     # Puerto en el que se escucha
 
-set_active(5, 0)
 
 # Crea un socket para IPv4 y conexión TCP
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
