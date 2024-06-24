@@ -2,52 +2,55 @@ import mysql.connector
 
 def get_connection():
     try:
-        cnx = mysql.connector.connect(user='root', password='dcc',
-                                      host='localhost',
-                                      database='mydb')
-        return cnx
+        conn = mysql.connector.connect(
+            user='root', password='dcc',
+            host='localhost',
+            database='mydb'
+        )
+        return conn
     except mysql.connector.Error as err:
         print(f"Something went wrong: {err}")
         return None
     
 def insert_config(config):
-    cnx = get_connection()
-    if cnx is None:
+    conn = get_connection()
+    if conn is None:
         return
-    cursor = cnx.cursor()
+    cursor = conn.cursor()
     add_config = ("INSERT INTO configuration "
                   "(Status_conf, Protocol_conf, Acc_sampling, Acc_sensibility, Gyro_sensibility, BME688_sampling, Discontinuos_time, TCP_PORT, UDP_port, Host_ip_addr, Ssid, Pass) "
                   "VALUES (%(status)s, %(id_protocol)s, %(acc_sampling)s, %(acc_sensibility)s, %(gyro_sensibility)s, %(bme668_sampling)s, %(discontinuos_time)s, %(tcp_port)s, %(udp_port)s, %(host_ip_addr)s, %(ssid)s, %(pass)s)")
 
     cursor.execute(add_config, config)
 
-    cnx.commit()
+    conn.commit()
     cursor.close()
-    cnx.close()
+    conn.close()
     
-#Esta función se encarga de obtener la ultima configuración de la base de datos
-def get_last_config():
-    cnx = get_connection()
-    cursor = cnx.cursor()
-    # Obtenemos la ultima configuración insertada
+# obtener la ultima configuracion de la base de datos
+def get_config():
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Obtenemos la ultima configuracion insertada
     query = ("SELECT * FROM configuration ORDER BY Id_device DESC LIMIT 1")
     cursor.execute(query)
 
     config_tuple = cursor.fetchone()
     config = tuple_to_dict(config_tuple) if config_tuple else None 
     cursor.close()
-    cnx.close()
+    conn.close()
 
     return config
 
 def delete_all_configurations():
-    cnx = get_connection()
-    cursor = cnx.cursor()
+    conn = get_connection()
+    cursor = conn.cursor()
     query = "DELETE FROM configuration"
     cursor.execute(query)
-    cnx.commit()
+    conn.commit()
     cursor.close()
-    cnx.close()
+    conn.close()
 
 def tuple_to_dict(config_tuple):
     keys = [
@@ -69,7 +72,6 @@ def tuple_to_dict(config_tuple):
     return dict(zip(keys, config_tuple))
 
 # TEST para probar la conexión a la base de datos
-
 def main():
     # Crear un diccionario de configuración de ejemplo
     delete_all_configurations()

@@ -1,4 +1,12 @@
-#import conexion_SQL as sql
+"""
+Este es el codigo principal
+
+Al ejecutarlo se inicia la interfaz grafica con los controles de la aplicacion
+
+La logica se encuentra en el archivo controller.py
+"""
+
+# import conexion_SQL as sql
 from PyQt5 import QtWidgets, QtCore
 from base_interfaz import Ui_Dialog
 import queue
@@ -35,12 +43,12 @@ class InputCollector:
         self.acc_sensibilities["current"] = int(self.acc_sensibilities.get("options")[0])
         self.gyro_sensibilities["current"] = int(self.gyro_sensibilities.get("options")[0])
         self.bme688_samplings["current"] = int(self.bme688_samplings.get("options")[0])
-        self.discontinuos_time = ""
-        self.tcp_port = ""
-        self.udp_port = ""
-        self.host_ip_addr = ""
-        self.ssid = ""
-        self.passw = ""
+        self.discontinuos_time = "1"
+        self.tcp_port = "8080"
+        self.udp_port = "8081"
+        self.host_ip_addr = "10.20.1.1"
+        self.ssid = "iot-wifi"
+        self.passw = "iotdcc123"
 
         self.interface.box_modo_op.addItems([mode.get("name") for mode in self.op_mode.get("options")])
         self.interface.box_modo_op.currentIndexChanged.connect(self.update_op_mode)
@@ -192,7 +200,6 @@ class InputCollector:
                 
         except Exception as e:
             print("ERROR:", e)
-
 
     #Esta función se encarga de actualizar el combobox de id_protocol
     #según la opción seleccionada en el combobox de modo de operación,
