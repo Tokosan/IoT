@@ -19,12 +19,11 @@ async def scan():
     # Con esto podemos ver los dispositivos que estan disponibles
     scanner = BleakScanner()
     devices = await scanner.discover()
-    print("Devices:")
-    # c0:49:ef:08:d3:ae 
-    print("+-------MAC-------+--------------------------+")
+    esps = []
     for device in devices:
-        print("",device)
-    return devices
+        if "ESP" in device.name:
+            esps.append(device.address)
+    return esps
 
 #Esta clase se encarga de recolectar los datos de la interfaz
 #y guardarlos en la base de datos de configuración

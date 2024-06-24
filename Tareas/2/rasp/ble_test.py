@@ -9,9 +9,13 @@ async def scan():
     devices = await scanner.discover()
     print("Devices:")
     # c0:49:ef:08:d3:ae 
+    print(devices)
     print("+-------MAC-------+--------------------------+")
+    esps = []
     for device in devices:
-        print("",device)
-    return devices
+        if "ESP" in device.name:
+            esps.append(device.address)
+    return esps
 
-asyncio.run(scan())
+esps = asyncio.run(scan())
+print("ESPS:", esps)
