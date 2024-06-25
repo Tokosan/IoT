@@ -426,6 +426,11 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         }
         esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
                                     ESP_GATT_OK, &rsp);
+        
+        if (config.status == 31) {
+            esp_deep_sleep(1000 * config.disc_time);
+        }
+
         break;
     }
     case ESP_GATTS_WRITE_EVT: {
@@ -938,92 +943,6 @@ void generate_packet() {
     }
 }
 
-void create_arrays() {
-    int16_t *acc_x = (int16_t *)malloc(2000 * 4);
-    int16_t *acc_y = (int16_t *)malloc(2000 * 4);
-    int16_t *acc_z = (int16_t *)malloc(2000 * 4);
-    int16_t *arrays[3] = {acc_x, acc_y, acc_z};
-    for (int i = 0; i < 2000; i++) {
-        acc_x[i] = random_int(-8000, 8000);
-        acc_y[i] = random_int(-8000, 8000);
-        acc_z[i] = random_int(-8000, 8000);
-    }
-    //     // mandamos paquetes de a 1000 + 12 bytes (PACKET_SIZE_P4_L)
-    //     for (byte1_t i = 0; i < n_packets - 1; i++) {
-    //         id_packet = (id_main << 8) | (i + 1);
-    //         packet = create_base_packet(PACKET_SIZE_P4_L);
-    //         set_id(packet, id_packet);
-
-    //         memcpy(packet + 12, arrays[i / 8] + (i % 8) * 250, 1000);
-    //         ESP_LOGI("P4", "Sending packet %d", i);
-    //         send_packet(packet, PACKET_SIZE_P4_L);
-    //         print_packet(packet);
-    //         free(packet);
-    //         vTaskDelay(TIME_BETWEEN_PACKETS / portTICK_PERIOD_MS);
-    //     }
-
-    //     for (int i = 0; i < 6; i++) {
-    //         free(arrays[i]);
-    //     }
-    // }
-}
-
-// // Usamos arreglos para las funciones
-// typedef void (*func_ptr_prot)();
-// typedef int (*func_ptr_sock)();
-// func_ptr_prot func_protocol_array[5] = {protocol0, protocol1, protocol2, protocol3, protocol4};
-// func_ptr_sock func_socket_array[2] = {socket_tcp, socket_udp};
-
-// void start_communication() {
-//     // invocamos a la funcion correspondiente segun protocol y TL
-//     int res;
-
-//     ESP_LOGI("start_communication", "Creando socket de comunicacion...");
-//     res = func_socket_array[TL - '0'](SERVER_COMM_PORT);
-//     if (res < 0) {
-//         return;
-//     }
-//     ESP_LOGI("start_communication", "Socket de comunicacion creado!");
-
-//     ESP_LOGI("start_communication", "Creando header...");
-//     create_header();
-//     ESP_LOGI("start_communication", "Header creado!");
-
-//     // dependiendo del TL, reiniciamos o mandamos perpetuamente
-//     if (TL == '0') {
-//         ESP_LOGI("start_communication", "TL 0, mandamos una vez y dormimos!");
-//         func_protocol_array[protocol - '0']();
-//     } else {
-//         ESP_LOGI("start_communication", "TL 1, mandamos perpetuamente!");
-//         while (TL == '1') {
-//             func_protocol_array[protocol - '0']();
-//             vTaskDelay(1000 / portTICK_PERIOD_MS);
-//             // revisamos si hubo algun cambio en el protocolo o TL
-//             res = check_changes();
-//             if (res < 0) {
-//                 // hubo un error :c
-//                 break;
-//             }
-//             if (res == 0) {
-//                 // no hubo cambios
-//                 continue;
-//             }
-//             if (res > 0) {
-//                 // si hubo un cambio!
-//                 free(header);
-//                 create_header();
-//                 continue;
-//             }
-//         }
-//     }
-// }
-
-// void clean() {
-//     close(main_socket);
-//     close(comm_socket);
-//     free(header);
-// }
-
 /**
  * @brief Updates the status from the NVS or sets it to 0 by default
  *
@@ -1189,10 +1108,16 @@ void get_config() {
     nvs_get_i32(my_handle, "disc_time", &config.disc_time);
     nvs_get_i32(my_handle, "tcp_port", &config.tcp_port);
     nvs_get_i32(my_handle, "udp_port", &config.udp_port);
-    size_t wifi_len = 10;
-    size_t host_len = 16;
+    size_t wifi_len = 0;
+    size_t host_len = 0;
+    
     nvs_get_str(my_handle, "ssid", config.ssid, &wifi_len);
+    nvs_get_str(my_handle, "ssid", config.ssid, &wifi_len);
+
     nvs_get_str(my_handle, "pass", config.pass, &wifi_len);
+    nvs_get_str(my_handle, "pass", config.pass, &wifi_len);
+
+    nvs_get_str(my_handle, "host_ip_addr", config.host_ip_addr, &host_len);
     nvs_get_str(my_handle, "host_ip_addr", config.host_ip_addr, &host_len);
 }
 
@@ -1279,38 +1204,4 @@ void app_main(void) {
     if (local_mtu_ret) {
         ESP_LOGE(GATTS_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
-
-    if (status == 0) {
-        // estamos en proceso de configuracion, asi que no hacemos nada y
-        // retornamos para esperar el evento de configuracion
-    }
-    return;
-
-    // srand(time(NULL));
-    // int res;
-    // nvs_init();
-    // wifi_init_sta(WIFI_SSID, WIFI_PASSWORD);
-    // ESP_LOGI(TAG, "Conectado a WiFi!\n");
-
-    // // obtenemos e imprimimos la mac adress de la ESP32
-    // esp_read_mac(MAC, ESP_MAC_WIFI_STA);
-
-    // // creamos el main_socket
-    // res = socket_tcp(SERVER_PORT);
-    // if (res < 0) {
-    //     esp_deep_sleep(10);
-    // }
-
-    // // solicitamos el protocolo y la capa de transporte
-    // res = get_ids();
-    // if (res < 0) {
-    //     ESP_LOGE("main", "Error al obtener protocolo y TL");
-    //     esp_deep_sleep(10);
-    // }
-
-    // // comenzamos la comunicacion
-    // start_communication();
-    // clean();  // se cierran los sockets y se libera memoria
-    // ESP_LOGI("main", "Fin del programa, durmiendo 1 segundo...");
-    // esp_deep_sleep(1 * 1000000);
 }
