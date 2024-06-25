@@ -25,8 +25,8 @@ async def scan():
             esps.append(device.address)
     return esps
 
-#Esta clase se encarga de recolectar los datos de la interfaz
-#y guardarlos en la base de datos de configuración
+# Esta clase se encarga de recolectar los datos de la interfaz
+# y guardarlos en la base de datos de configuracion
 class InputCollector:
     def __init__(self, dialog):
         self.interface = Ui_Dialog()

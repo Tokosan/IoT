@@ -1,5 +1,5 @@
 import asyncio
-from packet_parser_BLE import parse_packet, generate_config
+from parser import parse_packet, encode_config
 from struct import unpack
 from bleak import BleakClient, BleakScanner
 ADDRESS = "C0:49:EF:08:D3:AE"
@@ -45,7 +45,7 @@ async def main():
     print("Here we are at the async with, with client", client)
 
     print("Escribiendo...")
-    config = generate_config()
+    config = encode_config()
     print(config)
     await client.write_gatt_char(CHARACTERISTIC_UUID, config)
     print("Listo!")

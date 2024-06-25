@@ -150,7 +150,7 @@ def encode_config():
 
 def bytes_hex(data):
     data_string = data.hex()
-    return ' '.join(a + b for a,b in zip(data_string[::2], data_string[1::2])))
+    return ' '.join(a + b for a,b in zip(data_string[::2], data_string[1::2]))
 
 if __name__ == "__main__":
     data = generate_config()
