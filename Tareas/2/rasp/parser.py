@@ -104,7 +104,6 @@ def old_parse_kpi(packet: dict, data: bytes, i: int) -> dict:
     packet[keys[i // 8]] = target
     return packet
 
-
 def parse_packet(data: bytes) -> None:
     packet = {}
     

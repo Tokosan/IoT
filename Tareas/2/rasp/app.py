@@ -25,6 +25,9 @@ async def scan():
             esps.append(device.address)
     return esps
 
+async def get_data(address):
+    
+
 # Esta clase se encarga de recolectar los datos de la interfaz
 # y guardarlos en la base de datos de configuracion
 class InputCollector:
@@ -128,10 +131,14 @@ class InputCollector:
         self.interface.boton_detener_graficar.clicked.connect(self.stop_plotting)
 
     def scan_devices(self):
-        asyncio.run(scan())
+        # Eliminamos los items que tenga selec_esp
+        self.interface.selec_esp.clear()
+        devices = asyncio.run(scan())
+        for device in devices:
+            self.interface.selec_esp.addItem(device)
 
-    #Esta función se encarga de guardar los datos en la MongoDB y retorna el
-    #diccionario con los datos recolectados
+    # Esta función se encarga de guardar los datos en la MongoDB y retorna el
+    # diccionario con los datos recolectados
     def get_and_save_config(self):
         for key, value in self.config.items():
             self.interface.consola_1.setText(self.interface.consola_1.toPlainText() + f"{key}: {value}\n")
