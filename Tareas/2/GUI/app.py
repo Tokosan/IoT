@@ -205,6 +205,31 @@ class InputCollector:
                 self.update_plots()
             time.sleep(.03)
 
+    async def get_data_desc(self):
+        while self.monitoring:
+            """ 
+            client = BleakClient(self.mac)
+            print("Trying to connect to: ", client)
+            i = 0
+            while True:
+                try:
+                    await client.connect()
+                    break
+                except:
+                    i += 1
+            print(f"Connected (after {i} tries)")
+            """
+            # data = await client.read_gatt_char(CHARACTERISTIC_UUID)
+            # data = parse_packet(data)
+            for key in data:
+                self.data[key]['data'].append(data[key])
+            
+            print("Data:", data)
+                
+            if self.plotting:
+                self.update_plots()
+        
+
     def clear_data(self):
         self.data = {
             "batt_level": {"data": [], "protocols": [1, 2, 3, 4]},
@@ -284,7 +309,10 @@ class InputCollector:
         QtWidgets.QApplication.processEvents()
         self.update_plot_selectors()
         print("Iniciando obtencion de datos")
-        asyncio.run(self.get_data_cont())
+        if self.config["status"] == 31:
+            asyncio.run(self.get_data_desc())
+        else:
+            asyncio.run(self.get_data_cont())
         print("Obtencion finalizada")
 
     def start_plotting(self):
