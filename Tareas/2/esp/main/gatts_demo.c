@@ -42,24 +42,6 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 #define GATTS_DEMO_CHAR_VAL_LEN_MAX 0x40
 #define PREPARE_BUF_MAX_SIZE 1024
 
-int32_t status;
-
-// WiFi
-// Credenciales (seran entregadas por BLE)
-char *WIFI_SSID = "iot-wifi";
-char *WIFI_PASSWORD = "iotdcc123";
-char *SERVER_IP = "10.20.1.1";
-// Puertos (seran entregados por BLE)
-int SERVER_PORT = 1235;
-int SERVER_COMM_PORT = 12350;
-#define WIFI_CONNECTED_BIT BIT0
-#define WIFI_FAIL_BIT BIT1
-static const char *TAG = "WIFI";
-static int s_retry_num = 0;
-static EventGroupHandle_t s_wifi_event_group;
-int comm_socket;
-int main_socket;
-
 // BLE
 static uint8_t char1_str[] = {0x11, 0x22, 0x33};
 static esp_gatt_char_prop_t a_property = 0;
@@ -167,25 +149,14 @@ typedef uint32_t byte4_t;
 #define PACKET_SIZE_P2 16
 #define PACKET_SIZE_P3 20
 #define PACKET_SIZE_P4 44
-// ahora el protocolo 5 tiene que enviar un total de 44 bytes iniciales +
-// 12000 bytes de datos (3 arreglos de 2000 elementos de 2 bytes)
-#define PACKET_SIZE_P5_S 16        // paquete inicial
-#define PACKET_SIZE_P5_L 1 + 1000  // 12 paquetes siguientes
 
 int packet_len[] = {
     PACKET_SIZE_BASE,
     PACKET_SIZE_P1,
     PACKET_SIZE_P2,
     PACKET_SIZE_P3,
-    PACKET_SIZE_P4,
-    PACKET_SIZE_P5_S,
-    PACKET_SIZE_P5_L,
+    PACKET_SIZE_P4
 };
-
-// Tiempos
-#define TIME_SLEEP 1
-#define TIME_BETWEEN_PACKETS 100  // usado para el protocolo 5
-#define TIME_BETWEEN_SEND 1000    // usado para UDP
 
 typedef struct Config {
     int32_t status;
@@ -203,10 +174,7 @@ typedef struct Config {
 } Config;
 
 Config config;
-int protocol;
-int TL;
 byte1_t *packet;
-struct sockaddr_in server_comm_addr;
 
 struct gatts_profile_inst {
     esp_gatts_cb_t gatts_cb;
@@ -765,82 +733,6 @@ void nvs_init() {
     ESP_ERROR_CHECK(ret);
 }
 
-int socket_udp(int port) {
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-    inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr.s_addr);
-
-    // Crear un socket UDP (SOCK_DGRAM)
-    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sock < 0) {
-        ESP_LOGE(TAG, "Error al crear el socket");
-        return -1;
-    }
-
-    int connection_status = connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
-    // Conectar al servidor
-    if (connection_status != 0) {
-        ESP_LOGE(TAG, "Error al conectar por UDP");
-        close(sock);
-        return -1;
-    }
-
-    ESP_LOGI(TAG, "Conexion por socket UDP exitosa!");
-    // seteamos el timeout a 5 segundos de salida y 5 segundos de entrada
-    struct timeval tv;
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
-    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof tv);
-
-    if (port == SERVER_COMM_PORT) {
-        server_comm_addr = server_addr;
-        comm_socket = sock;
-    }
-
-    return 0;
-}
-
-int socket_tcp(int port) {
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-    inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr.s_addr);
-
-    // Crear un socket TCP (SOCK_STREAM)
-    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock < 0) {
-        ESP_LOGE(TAG, "Error al crear el socket");
-        return -1;
-    }
-
-    int connection_status = connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
-    // Conectar al servidor
-    if (connection_status != 0) {
-        ESP_LOGE(TAG, "Error al conectar por TCP");
-        close(sock);
-        return -2;
-    }
-
-    ESP_LOGI(TAG, "Conexion por socket TCP exitosa!");
-
-    // seteamos el timeout a 5 segundos de salida y 5 segundos de entrada
-    struct timeval tv;
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
-    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof tv);
-
-    if (port == SERVER_COMM_PORT) {
-        server_comm_addr = server_addr;
-        comm_socket = sock;
-    } else {
-        main_socket = sock;
-    }
-    return 0;
-}
-
 int32_t random_int(int min, int max) {
     return rand() % (max - min + 1) + min;
 }
@@ -917,16 +809,6 @@ void append_rms() {
     memcpy(packet + PACKET_SIZE_P2, (byte1_t *)&rms, 4);
 }
 
-void send_packet_wifi(char *packet, int size) {
-    if (protocol == 0) {
-        // TCP
-        send(comm_socket, packet, size, 0);
-    } else {
-        // UDP
-        sendto(comm_socket, packet, size, 0, (struct sockaddr *)&server_comm_addr, sizeof(server_comm_addr));
-    }
-}
-
 void generate_packet() {
     packet = (byte1_t *)malloc(packet_len[protocol]);
     packet[0] = (byte1_t)protocol;  // id_protocol
@@ -941,70 +823,6 @@ void generate_packet() {
     if (protocol == 4) {
         append_imu();
     }
-}
-
-/**
- * @brief Updates the status from the NVS or sets it to 0 by default
- *
- */
-void get_status() {
-    // Open
-    printf("\n");
-    printf("Opening Non-Volatile Storage (NVS) handle... ");
-    nvs_handle_t my_handle;
-    // Intentamos abrir el storage "config"
-    esp_err_t ret = nvs_open("config", NVS_READWRITE, &my_handle);
-    if (ret != ESP_OK) {
-        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
-        return;
-    }
-    printf("Done\n");
-    // Read
-    printf("Reading status from NVS ... ");
-    status = 0;  // value will default to 0, if not set yet in NVS
-    ret = nvs_get_i32(my_handle, "status", &status);
-    switch (ret) {
-    case ESP_OK:
-        printf("Done\n");
-        printf("Status: %ld\n", status);
-        break;
-    case ESP_ERR_NVS_NOT_FOUND:
-        printf("The value is not initialized yet!\n");
-        printf("Setting to default value: 0\n");
-        ret = nvs_set_i32(my_handle, "status", 0);
-        printf("Committing updates in NVS ... ");
-        ret = nvs_commit(my_handle);
-        printf((ret != ESP_OK) ? "Failed!\n" : "Done\n");
-        break;
-    default:
-        printf("Unknown error\n");
-    }
-}
-
-/**
- * @brief Sets the status in the NVS
- *
- */
-void set_status(int new_status) {
-    // Open
-    printf("\n");
-    printf("Opening Non-Volatile Storage (NVS) handle... ");
-    nvs_handle_t my_handle;
-    // Intentamos abrir el storage "config"
-    esp_err_t ret = nvs_open("config", NVS_READWRITE, &my_handle);
-    if (ret != ESP_OK) {
-        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
-        return;
-    }
-    printf("Done\n");
-    // Set
-    printf("Setting status in NVS ... ");
-    ret = nvs_set_i32(my_handle, "status", new_status);
-    printf((ret != ESP_OK) ? "Failed!\n" : "Done\n");
-    printf("Committing updates in NVS ... ");
-    ret = nvs_commit(my_handle);
-    printf((ret != ESP_OK) ? "Failed!\n" : "Done\n");
-    nvs_close(my_handle);
 }
 
 void set_config() {

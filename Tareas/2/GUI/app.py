@@ -1,7 +1,7 @@
 from PyQt5 import QtWidgets, QtCore
 from base_interfaz import Ui_Dialog
 import asyncio
-import queue
+from math import sin
 import time, random
 import db
 from bleak import BleakClient, BleakScanner
@@ -9,32 +9,9 @@ from parser import encode_config
 
 CHARACTERISTIC_UUID = "0000FF01-0000-1000-8000-00805F9B34FB"
 
-async def scan():
-    # Con esto podemos ver los dispositivos que estan disponibles
-    # scanner = BleakScanner()
-    # devices = await scanner.discover()
-    # esps = []
-    # for device in devices:
-    #     if "ESP" in device.name:
-    #         esps.append(device.address)
-    # return esps
-    return ["MAC1", "MAC2"]
 
-async def send_config(mac, config):
-    client = BleakClient(mac)
-    print("Trying to connect to: ", client)
-    i = 0
-    while True:
-        i += 1
-        try:
-            await client.connect()
-            break
-        except:
-            continue
-    print(f"Connected (after {i} tries)")    
-
-#Esta clase se encarga de recolectar los datos de la interfaz
-#y guardarlos en la base de datos de configuración
+# Esta clase se encarga de recolectar los datos de la interfaz
+# y guardarlos en la base de datos de configuración
 class InputCollector:
     def __init__(self, dialog):
         self.interface = Ui_Dialog()
@@ -47,10 +24,6 @@ class InputCollector:
         # Mapeo de las opciones del combobox a los id_protocol compatibles
         self.op_mode = {"options": [
             {"name": "Configuración por Bluetooth", "protocols": ["1"], "value": 0},
-            {"name": "Configuración vía TCP en BD", "protocols": ["1"], "value": 20},
-            {"name": "Conexión TCP continua", "protocols": ["1", "2", "3", "4", "5"], "value": 21},
-            {"name": "Conexión TCP discontinua", "protocols": ["1", "2", "3", "4", "5"], "value": 22},
-            {"name": "Conexión UDP", "protocols": ["1", "2", "3", "4", "5"], "value": 23},
             {"name": "BLE continua", "protocols": ["1", "2", "3", "4"], "value": 30},
             {"name": "BLE discontinua", "protocols": ["1", "2", "3", "4"], "value": 31}
         ]}
@@ -89,12 +62,17 @@ class InputCollector:
         self.interface.box_acc_sensibility.currentIndexChanged.connect(self.update_acc_sensibility)
         self.interface.box_gyro_sensibility.currentIndexChanged.connect(self.update_gyro_sensibility)
         self.interface.box_bme_sampling.currentIndexChanged.connect(self.update_BME688_sampling)
+        
+        self.interface.selec_plot1.currentIndexChanged.connect(self.update_plots)
+        self.interface.selec_plot2.currentIndexChanged.connect(self.update_plots)
+        self.interface.selec_plot3.currentIndexChanged.connect(self.update_plots)
+        
         self.interface.text_disc_time.textChanged["QString"].connect(self.update_discontinuous_time)
         self.interface.text_tcp_port.textChanged["QString"].connect(self.update_tcp_port)
         self.interface.text_udp_port.textChanged["QString"].connect(self.update_udp_port)
         self.interface.text_host_ip.textChanged["QString"].connect(self.update_host_ip_addr)
         self.interface.text_ssid.textChanged["QString"].connect(self.update_ssid)
-        self.interface.text_pass.textChanged["QString"].connect(self.update_passw)
+        self.interface.text_pass.textChanged["QString"].connect(self.update_pass)
 
         self.interface.boton_inicio.clicked.connect(self.start_worker)
         self.interface.boton_detener.clicked.connect(self.stop_worker)
@@ -115,34 +93,140 @@ class InputCollector:
             "pass": self.passw
         }
 
+        self.window = 20
+
+        self.data = {
+            "batt_level": {"data": [], "protocols": [1, 2, 3, 4]},
+            
+            "temp": {"data": [], "protocols": [2, 3, 4]},
+            "hum": {"data": [], "protocols": [2, 3, 4]},
+            "press": {"data": [], "protocols": [2, 3, 4]},
+            "co": {"data": [], "protocols": [2, 3, 4]},
+            
+            "rms": {"data": [], "protocols": [3, 4]},
+            
+            "amp_x": {"data": [], "protocols": [4]},
+            "amp_y": {"data": [], "protocols": [4]},
+            "amp_z": {"data": [], "protocols": [4]},
+            
+            "freq_x": {"data": [], "protocols": [4]},
+            "freq_y": {"data": [], "protocols": [4]},
+            "freq_z": {"data": [], "protocols": [4]},
+        }
+        
         self.worker = None
         self.monitoring = False
         self.threadpool = QtCore.QThreadPool()
         self.threadpool.setMaxThreadCount(1)
-        
-        self.data_queues = {
-            "Temp": {"q": queue.Queue(maxsize=20), "data": [], "window": 100}
-        }
 
-        self.plotting = False
+        self.plotting = True
         self.timer = QtCore.QTimer()
         self.timer.setInterval(30)
         self.timer.timeout.connect(self.update_plots)
         self.timer.start()
 
-        self.interface.boton_graficar.setEnabled(False)
-        self.interface.boton_detener_graficar.setEnabled(False)
-        self.interface.boton_detener.setEnabled(False)
-        self.interface.boton_graficar.clicked.connect(self.start_plotting)
-        self.interface.boton_detener_graficar.clicked.connect(self.stop_plotting)
+    async def send_config(self):
+        pass
+        # client = BleakClient(self.mac)
+        # print("Trying to connect to: ", client)
+        # i = 0
+        # while True:
+        #     i += 1
+        #     try:
+        #         await client.connect()
+        #         break
+        #     except:
+        #         continue
+        # print(f"Connected (after {i} tries)")
+        # await client.write_gatt_char(CHARACTERISTIC_UUID, encode_config())
 
     def scan_devices(self):
-        devices = asyncio.run(scan())
+        asyncio.run(self.scan())
+
+    async def scan(self):
+        # Eliminamos los items que tenga selec_esp
+        self.interface.selec_esp.clear()
+        # Con esto podemos ver los dispositivos que estan disponibles
+        # scanner = BleakScanner()
+        # devices = await scanner.discover()
+        # esps = []
+        # for device in devices:
+        #     if "ESP" in device.name:
+        #         esps.append(device.address)
+        # devices = esps
+        devices = ["MAC1", "MAC2"]
         for device in devices:
             self.interface.selec_esp.addItem(device)
 
-    #Esta función se encarga de guardar los datos en la MongoDB y retorna el
-    #diccionario con los datos recolectados
+    async def get_data_cont(self):
+        pass
+        """ 
+        client = BleakClient(self.mac)
+        print("Trying to connect to: ", client)
+        i = 0
+        while True:
+            try:
+                await client.connect()
+                break
+            except:
+                i += 1
+        print(f"Connected (after {i} tries)")
+        """
+        i = 0
+        while self.monitoring:
+            # data = await client.read_gatt_char(CHARACTERISTIC_UUID)
+            # data = parse_packet(data)
+            i += 1
+            data = {
+                'batt_level': random.randint(0, 100),
+                
+                'temp': sin(i) * 100,
+                'hum': random.randint(0, 100),
+                'press': random.randint(0, 100),
+                'co': random.randint(0, 100),
+                
+                'rms': random.randint(0, 100),
+                
+                'amp_x': random.randint(0, 100),
+                'amp_y': random.randint(0, 100),
+                'amp_z': random.randint(0, 100),
+                
+                'freq_x': random.randint(0, 100),
+                'freq_y': random.randint(0, 100),
+                'freq_z': random.randint(0, 100),
+            }
+            
+            for key in data:
+                self.data[key]['data'].append(data[key])
+            
+            print("Data:", data)
+                
+            if self.plotting:
+                self.update_plots()
+            time.sleep(.03)
+
+    def clear_data(self):
+        self.data = {
+            "batt_level": {"data": [], "protocols": [1, 2, 3, 4]},
+            
+            "temp": {"data": [], "protocols": [2, 3, 4]},
+            "hum": {"data": [], "protocols": [2, 3, 4]},
+            "press": {"data": [], "protocols": [2, 3, 4]},
+            "co": {"data": [], "protocols": [2, 3, 4]},
+            
+            "rms": {"data": [], "protocols": [3, 4]},
+            
+            "amp_x": {"data": [], "protocols": [4]},
+            "amp_y": {"data": [], "protocols": [4]},
+            "amp_z": {"data": [], "protocols": [4]},
+            
+            "freq_x": {"data": [], "protocols": [4]},
+            "freq_y": {"data": [], "protocols": [4]},
+            "freq_z": {"data": [], "protocols": [4]},
+        }
+        
+    # Esta función se encarga de guardar los datos en la DB y retorna el
+    # diccionario con los datos recolectados
     def get_and_save_config(self):
         self.config = {
             "status": self.op_mode.get("current").get("value", 0),
@@ -161,11 +245,7 @@ class InputCollector:
         for key, value in self.config.items():
             print(f"{key}: {value}")
         db.insert_config(self.config)
-        config = encode_config()
-        print(config)
-        send_config(self.mac, config)
-        
-        
+        asyncio.run(self.send_config())
 
     def start_worker(self):
         self.toggle_fields_tab1(False)
@@ -174,41 +254,38 @@ class InputCollector:
         self.worker = Worker(self.start_monitoring, )
         self.threadpool.start(self.worker)
 
-        self.interface.boton_graficar.setEnabled(True)
-
     def stop_worker(self):
          self.toggle_fields_tab1(True)
          self.monitoring = False
-
-         self.interface.boton_graficar.setEnabled(False)
+         self.clear_data()
          
          # If plotting, stop
          if self.plotting:
              self.stop_plotting()
-
+        
+    def update_plot_selectors(self):
+        print("self.interface.selec_plot1", self.interface.selec_plot1)
+        self.interface.selec_plot1.clear()
+        self.interface.selec_plot2.clear()
+        self.interface.selec_plot3.clear()
+        for key in self.data:
+            
+            print("Searching for protocol:", self.id_protocol, "in", self.data[key]["protocols"])
+            
+            if int(self.id_protocol) not in self.data[key]["protocols"]:
+                print("Not found")
+                continue
+            
+            self.interface.selec_plot1.addItem(key)
+            self.interface.selec_plot2.addItem(key)
+            self.interface.selec_plot3.addItem(key)
+        
     def start_monitoring(self):
-        try:
-            QtWidgets.QApplication.processEvents()
-            while self.monitoring:
-                # DATA DE PRUEBA
-                data = [random.randint(5, 30) for i in range(5)]
-                
-                if self.plotting:
-                    q = self.data_queues.get("Temp").get("q")
-                    try:
-                        q.put_nowait(data)
-                    except queue.Full:
-                        q.get()
-                        q.put_nowait(data)
-
-                time.sleep(.5)
-                print(" "*50, end="\r")
-                print(data, end="\r")
-
-            print("Fin del proceso de monitoreo")
-
-        except Exception as e:
-            print("ERROR:", e)
+        QtWidgets.QApplication.processEvents()
+        self.update_plot_selectors()
+        print("Iniciando obtencion de datos")
+        asyncio.run(self.get_data_cont())
+        print("Obtencion finalizada")
 
     def start_plotting(self):
         self.plotting = True
@@ -217,44 +294,33 @@ class InputCollector:
     def stop_plotting(self):
         self.plotting = False
         self.toggle_fields_tab2(True)
-
-        # Clear all the data queues on stop
-        for var in self.data_queues:
-            varDict = self.data_queues.get(var)
-            with varDict.get("q").mutex:
-                varDict.get("q").queue.clear
-
-            varDict["data"] = []
+        self.clear_data()
 
     def update_plots(self):
-        try:
-            param = self.data_queues.get("Temp")
-            q = param.get("q")
-            data = param.get("data")
-            window = param.get("window", 20)
+        # Obtenemos el parametro a graficar en el plot 1
+        selectors = [self.interface.selec_plot1, self.interface.selec_plot2, self.interface.selec_plot3]
+        cuves = [self.interface.curve1, self.interface.curve2, self.interface.curve3]
+        for i in range(3):
+            try:
+                param = self.data[selectors[i].currentText()]
+            except KeyError:
+                continue
+            data = param["data"]
             
-            while self.plotting:
-                QtWidgets.QApplication.processEvents()
+            if len(data) > self.window:
+                data = data[-self.window:]
+                x = [i + len(data) - self.window for i in range(self.window)]
+            else:
+                x = list(range(len(data)))
 
-                try:
-                    data += q.get_nowait()
-                except queue.Empty:
-                    break
-
-            param["data"] = data[-window:]
-            x = list(range(len(data)))
-
-            self.interface.curve1.setData(x, data)
-                
-        except Exception as e:
-            print("ERROR:", e)
+            cuves[i].setData(x, data)
 
     def update_device(self, index):
         self.mac = self.interface.selec_esp.itemText(index)
 
-    #Esta función se encarga de actualizar el combobox de id_protocol
-    #según la opción seleccionada en el combobox de modo de operación,
-    #mostrando solo los id_protocol compatibles con la opción seleccionada
+    # Esta función se encarga de actualizar el combobox de id_protocol
+    # según la opción seleccionada en el combobox de modo de operación,
+    # mostrando solo los id_protocol compatibles con la opción seleccionada
     def update_op_mode(self, index):
         # Retrieve the selected operation mode
         selected_mode = self.op_mode.get("options")[index]
@@ -319,7 +385,7 @@ class InputCollector:
         self.ssid = val
         self.config["ssid"] = self.ssid
 
-    def update_passw(self, val):
+    def update_pass(self, val):
         # Update the instance values
         self.passw = val
         self.config["pass"] = self.passw
@@ -343,8 +409,6 @@ class InputCollector:
         self.interface.text_pass.setEnabled(value)
 
     def toggle_fields_tab2(self, value: bool):
-        self.interface.boton_detener_graficar.setEnabled(not value)
-        self.interface.boton_graficar.setEnabled(value)
         self.interface.selec_plot1.setEnabled(value)
         self.interface.selec_plot2.setEnabled(value)
         self.interface.selec_plot3.setEnabled(value)
