@@ -5,7 +5,7 @@ from math import sin
 import time, random
 import db
 from bleak import BleakClient, BleakScanner
-from parser import encode_config
+from parser import encode_config, parse_packet
 
 CHARACTERISTIC_UUID = "0000FF01-0000-1000-8000-00805F9B34FB"
 
@@ -145,15 +145,18 @@ class InputCollector:
         # Eliminamos los items que tenga selec_esp
         self.interface.selec_esp.clear()
         # Con esto podemos ver los dispositivos que estan disponibles
+        print("scanning")
         scanner = BleakScanner()
         devices = await scanner.discover()
         esps = []
         for device in devices:
             if "ESP" in device.name:
                 esps.append(device.address)
-        devices = esps
+            devices = esps
+        print("Devices found:", devices)
         for device in devices:
             self.interface.selec_esp.addItem(device)
+
 
     async def get_data_cont(self):
         client = BleakClient(self.mac)
@@ -170,38 +173,52 @@ class InputCollector:
         while self.monitoring:
             data = await client.read_gatt_char(CHARACTERISTIC_UUID)
             data = parse_packet(data)
+            print("++++++++++++++++++++++++++++++++++++++++++")
+            for key in data:
+                print(f"{key}: {data[key]}")
+            print("++++++++++++++++++++++++++++++++++++++++++")
+            print()
             
             for key in data:
-                self.data[key]['data'].append(data[key])
-            
-            print("Data:", data)
+                try:
+                    self.data[key]['data'].append(data[key])
+                except KeyError:
+                    continue
                 
             if self.plotting:
                 self.update_plots()
-            time.sleep(.03)
+            time.sleep(.5)
 
     async def get_data_desc(self):
-        while self.monitoring:
-            client = BleakClient(self.mac)
-            print("Trying to connect to: ", client)
-            i = 0
-            while True:
-                try:
-                    await client.connect()
-                    break
-                except:
-                    i += 1
-            print(f"Connected (after {i} tries)")
-            data = await client.read_gatt_char(CHARACTERISTIC_UUID)
-            data = parse_packet(data)
-            for key in data:
-                self.data[key]['data'].append(data[key])
-            
-            print("Data:", data)
-                
-            if self.plotting:
-                self.update_plots()
+        client = BleakClient(self.mac)
+        print("Trying to connect to: ", client)
+        i = 0
+        while True:
+            try:
+                await client.connect()
+                break
+            except:
+                i += 1
+        print(f"Connected (after {i} tries)")
+        data = await client.read_gatt_char(CHARACTERISTIC_UUID)
+        data = parse_packet(data)
+        print("++++++++++++++++++++++++++++++++++++++++++")
+        for key in data:
+            print(f"{key}: {data[key]}")
+        print("++++++++++++++++++++++++++++++++++++++++++")
+        print()
         
+        for key in data:
+            try:
+                self.data[key]['data'].append(data[key])
+            except KeyError:
+                continue
+        
+            
+        if self.plotting:
+            self.update_plots()
+        return
+    
 
     def clear_data(self):
         self.data = {
@@ -226,20 +243,7 @@ class InputCollector:
     # Esta función se encarga de guardar los datos en la DB y retorna el
     # diccionario con los datos recolectados
     def get_and_save_config(self):
-        self.config = {
-            "status": self.op_mode.get("current").get("value", 0),
-            "id_protocol": self.id_protocol,
-            "acc_sampling": self.acc_samplings.get("current"),
-            "acc_sensibility": self.acc_sensibilities.get("current"),
-            "gyro_sensibility": self.gyro_sensibilities.get("current"),
-            "bme668_sampling": self.bme688_samplings.get("current"),
-            "discontinuos_time": self.discontinuos_time,
-            "tcp_port": self.tcp_port,
-            "udp_port": self.udp_port,
-            "host_ip_addr": self.host_ip_addr,
-            "ssid": self.ssid,
-            "pass": self.passw
-        }
+        self.update_config()
         for key, value in self.config.items():
             print(f"{key}: {value}")
         db.insert_config(self.config)
@@ -255,35 +259,51 @@ class InputCollector:
     def stop_worker(self):
          self.toggle_fields_tab1(True)
          self.monitoring = False
-         self.clear_data()
          
          # If plotting, stop
          if self.plotting:
              self.stop_plotting()
         
     def update_plot_selectors(self):
-        print("self.interface.selec_plot1", self.interface.selec_plot1)
         self.interface.selec_plot1.clear()
         self.interface.selec_plot2.clear()
         self.interface.selec_plot3.clear()
         for key in self.data:
             
-            print("Searching for protocol:", self.id_protocol, "in", self.data[key]["protocols"])
-            
             if int(self.id_protocol) not in self.data[key]["protocols"]:
-                print("Not found")
+                
                 continue
             
             self.interface.selec_plot1.addItem(key)
             self.interface.selec_plot2.addItem(key)
             self.interface.selec_plot3.addItem(key)
+
+    def update_config(self):
+        self.config = {
+            "status": self.op_mode.get("current").get("value", 0),
+            "id_protocol": self.id_protocol,
+            "acc_sampling": self.acc_samplings.get("current"),
+            "acc_sensibility": self.acc_sensibilities.get("current"),
+            "gyro_sensibility": self.gyro_sensibilities.get("current"),
+            "bme668_sampling": self.bme688_samplings.get("current"),
+            "discontinuos_time": self.discontinuos_time,
+            "tcp_port": self.tcp_port,
+            "udp_port": self.udp_port,
+            "host_ip_addr": self.host_ip_addr,
+            "ssid": self.ssid,
+            "pass": self.passw
+        }
         
     def start_monitoring(self):
         QtWidgets.QApplication.processEvents()
+        self.clear_data()
         self.update_plot_selectors()
+        self.update_config()
         print("Iniciando obtencion de datos")
+
         if self.config["status"] == 31:
-            asyncio.run(self.get_data_desc())
+            while self.monitoring:
+                asyncio.run(self.get_data_desc())
         else:
             asyncio.run(self.get_data_cont())
         print("Obtencion finalizada")
