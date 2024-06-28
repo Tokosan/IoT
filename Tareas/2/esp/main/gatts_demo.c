@@ -33,6 +33,7 @@
 
 #define GATTS_TAG "GATTS_DEMO"
 static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
+static void super_duper_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 #define GATTS_SERVICE_UUID_A 0x00FF
 #define GATTS_CHAR_UUID_A 0xFF01  // Caracteristicas
 #define GATTS_DESCR_UUID_A 0x3333
@@ -41,6 +42,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 #define TEST_MANUFACTURER_DATA_LEN 17
 #define GATTS_DEMO_CHAR_VAL_LEN_MAX 0x40
 #define PREPARE_BUF_MAX_SIZE 1024
+
+void print_packet();
 
 // BLE
 static uint8_t char1_str[] = {0x11, 0x22, 0x33};
@@ -53,6 +56,8 @@ static esp_attr_value_t gatts_demo_char1_val = {
 static uint8_t adv_config_done = 0;
 #define adv_config_flag (1 << 0)
 #define scan_rsp_config_flag (1 << 1)
+
+bool to_sleep = false;
 
 static uint8_t adv_service_uuid128[32] = {
     /* LSB <--------------------------------------------------------------------------------> MSB */
@@ -155,8 +160,7 @@ int packet_len[] = {
     PACKET_SIZE_P1,
     PACKET_SIZE_P2,
     PACKET_SIZE_P3,
-    PACKET_SIZE_P4
-};
+    PACKET_SIZE_P4};
 
 typedef struct Config {
     int32_t status;
@@ -175,6 +179,8 @@ typedef struct Config {
 
 Config config;
 byte1_t *packet;
+
+int protocol;
 
 struct gatts_profile_inst {
     esp_gatts_cb_t gatts_cb;
@@ -199,7 +205,7 @@ void print_config();
 /* One gatt-based profile one app_id and one gatts_if, this array will store the gatts_if returned by ESP_GATTS_REG_EVT */
 static struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
     [PROFILE_APP_ID] = {
-        .gatts_cb = gatts_profile_event_handler,
+        .gatts_cb = super_duper_event_handler,
         .gatts_if = ESP_GATT_IF_NONE, /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
     },
 };
@@ -337,6 +343,10 @@ void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble
     prepare_write_env->prepare_len = 0;
 }
 
+static void super_duper_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param) {
+    gatts_profile_event_handler(event, gatts_if, param);
+}
+
 static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param) {
     switch (event) {
     case ESP_GATTS_REG_EVT:
@@ -386,7 +396,9 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 
         // generamos el paquete correspondiente
         protocol = config.id_protocol;
+
         generate_packet();
+        print_packet();
 
         rsp.attr_value.len = packet_len[protocol];
         for (int i = 0; i < rsp.attr_value.len; i++) {
@@ -394,9 +406,9 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         }
         esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
                                     ESP_GATT_OK, &rsp);
-        
+
         if (config.status == 31) {
-            esp_deep_sleep(1000 * config.disc_time);
+            to_sleep = true;
         }
 
         break;
@@ -593,6 +605,11 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     case ESP_GATTS_LISTEN_EVT:
     case ESP_GATTS_CONGEST_EVT:
     default:
+        if (to_sleep) {
+            printf("Sleeping in 2 seconds\n");
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+            esp_deep_sleep(1000 * config.disc_time);
+        }
         break;
     }
 }
@@ -625,104 +642,6 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
     } while (0);
 }
 
-void print_packet() {
-    // 1. Bateria
-    printf("Bateria:      %d\n", packet[1]);
-    printf("Timestamp:    %d\n", (packet[5] << 24) | (packet[4] << 16) | (packet[3] << 8) | packet[2]);
-    // 3. THPC
-    if (protocol >= 2) {
-        printf("Temperatura:  %d\n", packet[6]);
-        printf("Humedad:      %d\n", packet[7]);
-        // probar *((float *)(packet + 8))
-        printf("Presion:      %d\n", (packet[11] << 24) | (packet[10] << 16) | (packet[9] << 8) | packet[8]);
-        printf("CO:           %f\n", *((float *)(packet + 23)));
-    }
-    // 4. IMU
-    if (protocol == 3) {
-        printf("RMS:          %f\n", *((float *)(packet + 27 - 11)));
-        printf("Amplitud X:   %f\n", *((float *)(packet + 31 - 11)));
-        printf("Frecuencia X: %f\n", *((float *)(packet + 35 - 11)));
-        printf("Amplitud Y:   %f\n", *((float *)(packet + 39 - 11)));
-        printf("Frecuencia Y: %f\n", *((float *)(packet + 43 - 11)));
-        printf("Amplitud Z:   %f\n", *((float *)(packet + 47 - 11)));
-        printf("Frecuencia Z: %f\n", *((float *)(packet + 51 - 11)));
-    }
-}
-
-void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
-                   void *event_data) {
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        esp_wifi_connect();
-    } else if (event_base == WIFI_EVENT &&
-               event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        if (s_retry_num < 10) {
-            esp_wifi_connect();
-            s_retry_num++;
-            ESP_LOGI(TAG, "retry to connect to the AP");
-        } else {
-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
-        }
-        ESP_LOGI(TAG, "connect to the AP fail");
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
-        s_retry_num = 0;
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-    }
-}
-
-void wifi_init_sta(char *ssid, char *password) {
-    s_wifi_event_group = xEventGroupCreate();
-
-    ESP_ERROR_CHECK(esp_netif_init());
-
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_sta();
-
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    esp_event_handler_instance_t instance_any_id;
-    esp_event_handler_instance_t instance_got_ip;
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL, &instance_any_id));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, &instance_got_ip));
-
-    wifi_config_t wifi_config;
-    memset(&wifi_config, 0, sizeof(wifi_config_t));
-
-    // Set the specific fields
-    strcpy((char *)wifi_config.sta.ssid, WIFI_SSID);
-    strcpy((char *)wifi_config.sta.password, WIFI_PASSWORD);
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-    wifi_config.sta.pmf_cfg.capable = true;
-    wifi_config.sta.pmf_cfg.required = false;
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
-
-    ESP_LOGI(TAG, "wifi_init_sta finished.");
-
-    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-                                           WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-                                           pdFALSE, pdFALSE, portMAX_DELAY);
-
-    if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "connected to ap SSID:%s password:%s", ssid, password);
-    } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s", ssid, password);
-    } else {
-        ESP_LOGE(TAG, "UNEXPECTED EVENT");
-    }
-
-    ESP_ERROR_CHECK(esp_event_handler_instance_unregister(
-        IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
-    ESP_ERROR_CHECK(esp_event_handler_instance_unregister(
-        WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
-    vEventGroupDelete(s_wifi_event_group);
-}
-
 void nvs_init() {
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
@@ -746,14 +665,12 @@ float random_float(float min, float max) {
 void append_battery() {
     // generamos un numero aleatorio entre 1 y 100
     byte1_t battery = random_int(1, 100);
-    printf("Battery: %d\n", battery);
     memcpy(packet + PACKET_SIZE_BASE, (byte1_t *)&battery, 1);
 }
 
 // 1 2 3 4 5
 void append_timestamp() {
     byte4_t timestamp = time(NULL);
-    printf("Timestamp: %ld\n", timestamp);
     memcpy(packet + PACKET_SIZE_BASE + 1, (byte1_t *)&timestamp, 4);
 }
 
@@ -763,10 +680,6 @@ void append_thpc() {
     byte1_t hum = random_int(30, 80);
     byte4_t pres = random_int(1000, 1200);
     byte4_t co = random_int(30, 200);
-    printf("Temperatura: %d\n", temp);
-    printf("Humedad: %d\n", hum);
-    printf("Presion: %ld\n", pres);
-    printf("CO: %ld\n", co);
     memcpy(packet + PACKET_SIZE_P1, (byte1_t *)&temp, 1);
     memcpy(packet + PACKET_SIZE_P1 + 1, (byte1_t *)&hum, 1);
     memcpy(packet + PACKET_SIZE_P1 + 2, (byte1_t *)&pres, 4);
@@ -783,14 +696,6 @@ void append_imu() {
     float freq_z = random_float(89.0, 91.0);
     float rms = sqrt((amp_x * amp_x + amp_y * amp_y + amp_z * amp_z) / 3);
 
-    printf("RMS: %f\n", rms);
-    printf("Amplitud X: %f\n", amp_x);
-    printf("Frecuencia X: %f\n", freq_x);
-    printf("Amplitud Y: %f\n", amp_y);
-    printf("Frecuencia Y: %f\n", freq_y);
-    printf("Amplitud Z: %f\n", amp_z);
-    printf("Frecuencia Z: %f\n", freq_z);
-
     memcpy(packet + PACKET_SIZE_P2, (byte1_t *)&rms, 4);
     memcpy(packet + PACKET_SIZE_P2 + 4, (byte1_t *)&amp_x, 4);
     memcpy(packet + PACKET_SIZE_P2 + 8, (byte1_t *)&freq_x, 4);
@@ -805,11 +710,11 @@ void append_rms() {
     float amp_y = random_float(0.0041, 0.11);
     float amp_z = random_float(0.0080, 0.15);
     float rms = sqrt((amp_x * amp_x + amp_y * amp_y + amp_z * amp_z) / 3);
-    printf("RMS: %f\n", rms);
     memcpy(packet + PACKET_SIZE_P2, (byte1_t *)&rms, 4);
 }
 
 void generate_packet() {
+    srand(time(NULL));
     packet = (byte1_t *)malloc(packet_len[protocol]);
     packet[0] = (byte1_t)protocol;  // id_protocol
     append_battery();
@@ -928,7 +833,7 @@ void get_config() {
     nvs_get_i32(my_handle, "udp_port", &config.udp_port);
     size_t wifi_len = 0;
     size_t host_len = 0;
-    
+
     nvs_get_str(my_handle, "ssid", config.ssid, &wifi_len);
     nvs_get_str(my_handle, "ssid", config.ssid, &wifi_len);
 
@@ -937,6 +842,33 @@ void get_config() {
 
     nvs_get_str(my_handle, "host_ip_addr", config.host_ip_addr, &host_len);
     nvs_get_str(my_handle, "host_ip_addr", config.host_ip_addr, &host_len);
+}
+
+void print_packet() {
+    printf("\n");
+    protocol = config.id_protocol;
+    printf("++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    printf("Protocol:     %d\n", packet[0]);
+    printf("Battery:      %d\n", packet[1]);
+    printf("Timestamp:    %d\n", (packet[5] << 24) | (packet[4] << 16) | (packet[3] << 8) | packet[2]);
+    if (protocol >= 2) {
+        printf("Temperatura:  %d\n", packet[6]);
+        printf("Humedad:      %d\n", packet[7]);
+        printf("Presion:      %d\n", (packet[11] << 24) | (packet[10] << 16) | (packet[9] << 8) | packet[8]);
+        printf("CO:           %d\n", (packet[15] << 24) | (packet[14] << 16) | (packet[13] << 8) | packet[12]);
+    }
+    if (protocol == 3 || protocol == 4) {
+        printf("RMS:          %f\n", *((float *)(packet + 27 - 11)));
+    }
+    if (protocol == 4) {
+        printf("Amplitud X:   %f\n", *((float *)(packet + 31 - 11)));
+        printf("Frecuencia X: %f\n", *((float *)(packet + 35 - 11)));
+        printf("Amplitud Y:   %f\n", *((float *)(packet + 39 - 11)));
+        printf("Frecuencia Y: %f\n", *((float *)(packet + 43 - 11)));
+        printf("Amplitud Z:   %f\n", *((float *)(packet + 47 - 11)));
+        printf("Frecuencia Z: %f\n", *((float *)(packet + 51 - 11)));
+    }
+    printf("++++++++++++++++++++++++++++++++++++++++++++++++++\n");
 }
 
 void print_config() {
@@ -965,11 +897,6 @@ void app_main(void) {
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-
-    if (BOOT) {
-        set_status(0);
-        return;
-    }
 
     get_config();
     print_config();
