@@ -242,16 +242,6 @@ class Ui_Dialog(object):
         self.label_25 = QtWidgets.QLabel(self.tab_2)
         self.label_25.setGeometry(QtCore.QRect(160, 370, 201, 31))
         self.label_25.setObjectName("label_25")
-        self.boton_graficar = QtWidgets.QPushButton(self.tab_2)
-        self.boton_graficar.setGeometry(QtCore.QRect(273, 560, 94, 28))
-        self.boton_graficar.setStyleSheet("background-color: rgb(12, 85, 8);\n"
-"color: rgb(255, 255, 255);")
-        self.boton_graficar.setObjectName("boton_graficar")
-        self.boton_detener_graficar = QtWidgets.QPushButton(self.tab_2)
-        self.boton_detener_graficar.setGeometry(QtCore.QRect(397, 560, 94, 28))
-        self.boton_detener_graficar.setStyleSheet("background-color: rgb(103, 8, 8);\n"
-"color: rgb(255, 255, 255);")
-        self.boton_detener_graficar.setObjectName("boton_detener_graficar")
         self.Pestana_principal.addTab(self.tab_2, "")
 
         self.retranslateUi(Dialog)
@@ -263,7 +253,7 @@ class Ui_Dialog(object):
         Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
         self.label_4.setText(_translate("Dialog", "Botones de configuracion"))
         self.boton_inicio_2.setText(_translate("Dialog", "Inicio"))
-        self.boton_configuracion_3.setText(_translate("Dialog", "Seleccion ESP-32"))
+        self.boton_configuracion_3.setText(_translate("Dialog", "Escanear BLE"))
         self.boton_configuracion.setText(_translate("Dialog", "Configurar"))
         self.label_7.setText(_translate("Dialog", "Acc Sampling"))
         self.label_1.setText(_translate("Dialog", "Esp32 disponibles por bluetooth"))
@@ -333,8 +323,6 @@ class Ui_Dialog(object):
         self.selec_plot3.setItemText(4, _translate("Dialog", "Acc_z"))
         self.selec_plot3.setItemText(5, _translate("Dialog", "RMS"))
         self.label_25.setText(_translate("Dialog", "Seleccionar variable a graficar en plot 3"))
-        self.boton_graficar.setText(_translate("Dialog", "Graficar"))
-        self.boton_detener_graficar.setText(_translate("Dialog", "Detener"))
         self.Pestana_principal.setTabText(self.Pestana_principal.indexOf(self.tab_2), _translate("Dialog", "Pestaña de monitoreo"))
 
 if __name__ == "__main__":

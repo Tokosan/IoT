@@ -20,13 +20,6 @@ def print_packet(packet: dict) -> None:
         print(f"Frequencia Y:    {packet['freq_y']}")
         print(f"Amplitud Z:      {packet['amp_z']}")
         print(f"Frequencia Z:    {packet['freq_z']}")
-    if protocol == 5:
-        print(f"Acc X:           [{packet['acc_x'][0]}, {packet['acc_x'][1]} ... ]")
-        print(f"Acc Y:           [{packet['acc_y'][0]}, {packet['acc_y'][1]} ... ]")
-        print(f"Acc Z:           [{packet['acc_z'][0]}, {packet['acc_z'][1]} ... ]")
-        print(f"Rotational X:    [{packet['r_gyr_x'][0]}, {packet['r_gyr_x'][1]} ... ]")
-        print(f"Rotational Y:    [{packet['r_gyr_y'][0]}, {packet['r_gyr_y'][1]} ... ]")
-        print(f"Rotational Z:    [{packet['r_gyr_z'][0]}, {packet['r_gyr_z'][1]} ... ]")
     print("\n")
 
 # 1 2 3 4 5
@@ -80,30 +73,6 @@ def parse_imu(data: bytes) -> dict:
     }
     return ret
 
-
-def prepare_kpi():
-    return {
-        "acc_x": [None] * 2000,
-        "acc_y": [None] * 2000,
-        "acc_z": [None] * 2000,
-        "r_gyr_x": [None] * 2000,
-        "r_gyr_y": [None] * 2000,
-        "r_gyr_z": [None] * 2000
-    }
-
-# 5
-def old_parse_kpi(packet: dict, data: bytes, i: int) -> dict:
-    keys = ["acc_x", "acc_y", "acc_z", "r_gyr_x", "r_gyr_y", "r_gyr_z"]
-    try:
-        array = unpack('250f', data[12:1012])
-    except:
-        array = [-10000000] * 250
-    target = packet[keys[i // 8]]
-    for j in range(250):
-        target[(i % 8) * 250 + j] = array[j]
-    packet[keys[i // 8]] = target
-    return packet
-
 def parse_packet(data: bytes) -> None:
     packet = {}
     
@@ -152,6 +121,7 @@ def bytes_hex(data):
     return ' '.join(a + b for a,b in zip(data_string[::2], data_string[1::2]))
 
 if __name__ == "__main__":
-    data = generate_config()
+    config = get_config()
+    data = encode_config(config)
     # imprimimos el paquete en hexadecimal
     print("Paquete: ", bytes_hex(data))
